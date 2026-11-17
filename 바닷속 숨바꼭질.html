@@ -1,0 +1,2739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>바닷속 숨바꼭질: 위기의 바다 생물들을 구하라!</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (3D 렌더링) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts: 어린이 친화적 둥근 서체 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #022c43;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .ui-layer {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .pointer-auto {
+            pointer-events: auto;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 12px rgba(253, 224, 71, 0.75); transform: scale(1.03); }
+            50% { box-shadow: 0 0 26px rgba(253, 224, 71, 1); transform: scale(1.09); }
+        }
+        .tool-recommended {
+            animation: pulseGlow 1.3s infinite ease-in-out;
+            border-color: #fde047 !important;
+        }
+        .tool-btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tool-btn.active {
+            transform: translateY(-10px) scale(1.08);
+            box-shadow: 0 12px 25px rgba(56, 189, 248, 0.75);
+            border-color: #fde047;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+        }
+        .glass-panel {
+            background: rgba(8, 51, 88, 0.86);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(125, 211, 252, 0.45);
+        }
+        .certificate-card {
+            background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+            border: 8px double #f59e0b;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 메인 3D 렌더링 캔버스 -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- 우측 상단 사운드 토글 버튼 (전용 SVG 아이콘) -->
+    <div class="ui-layer top-3 right-3 sm:top-4 sm:right-4">
+        <button id="sound-toggle-btn" class="pointer-auto glass-panel text-white p-2.5 sm:p-3 rounded-full shadow-lg hover:bg-sky-700/80 transition active:scale-95 flex items-center justify-center" title="소리 켜기/끄기">
+            <svg id="sound-svg-on" class="w-6 h-6 text-yellow-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+            <svg id="sound-svg-off" class="w-6 h-6 text-slate-400 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 1. 시작 화면 오버레이 (이모지 없는 깔끔한 SVG 및 타이포그래피) -->
+    <div id="start-screen" class="ui-layer inset-0 flex items-center justify-center p-4 bg-sky-950/65 backdrop-blur-sm pointer-auto">
+        <div class="glass-panel max-w-xl w-full rounded-3xl p-6 sm:p-8 text-center text-white shadow-2xl border-4 border-sky-300/60">
+            <div class="inline-flex items-center gap-2 bg-sky-500/40 px-4 py-1.5 rounded-full text-sky-200 text-sm sm:text-base font-bold mb-3 border border-sky-300/40">
+                <svg class="w-4 h-4 text-yellow-300" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/></svg>
+                <span>3D 해양 생태계 보호 탐험 게임</span>
+            </div>
+            <h1 class="font-jua text-3xl sm:text-5xl text-yellow-300 drop-shadow-md leading-tight mb-4">
+                바닷속 숨바꼭질:<br>위기의 바다 생물들을 구하라!
+            </h1>
+            <p class="text-sky-100 text-base sm:text-lg leading-relaxed mb-6">
+                바다를 위협하는 쓰레기, 폐그물, 기름 유출, 뜨거워진 바닷물과 외래종 때문에<br class="hidden sm:inline">
+                멸종위기 바다 친구들이 바닷속 곳곳에 숨어 떨고 있어요!<br>
+                <strong class="text-yellow-200">알맞은 환경 보호 도구</strong>로 위험을 없애고 5마리 친구들을 구해주세요!
+            </p>
+
+            <!-- 조작 안내 카드 -->
+            <div class="grid grid-cols-2 gap-3 mb-6 text-left bg-sky-900/60 p-4 rounded-2xl border border-sky-400/30">
+                <div class="flex items-center gap-3">
+                    <div class="bg-sky-500/30 p-2.5 rounded-xl border border-sky-300/40 shrink-0">
+                        <svg class="w-7 h-7 text-yellow-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"></polygon>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-bold text-yellow-200 text-sm sm:text-base">바닷속 헤엄치기</div>
+                        <div class="text-xs sm:text-sm text-sky-200">방향키(WASD) 또는 바닥 클릭·터치<br>(화면 드래그로 시점 회전)</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-emerald-500/30 p-2.5 rounded-xl border border-emerald-300/40 shrink-0">
+                        <svg class="w-7 h-7 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-bold text-yellow-200 text-sm sm:text-base">장애물 해결하기</div>
+                        <div class="text-xs sm:text-sm text-sky-200">도구를 고르고 위험요소 클릭 또는 문지르기</div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="start-btn" class="font-jua text-2xl sm:text-3xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-sky-950 font-bold py-4 px-10 rounded-full shadow-xl transform transition hover:scale-105 active:scale-95 border-4 border-white">
+                탐험 시작하기
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 플레이 중 상단 HUD (이모지 없는 생물 도감 및 나침반 안내) -->
+    <div id="hud-top" class="ui-layer top-3 left-3 right-16 sm:top-4 sm:left-4 sm:right-20 hidden flex flex-col items-center gap-2">
+        <!-- 구출 도감 바 -->
+        <div class="glass-panel rounded-2xl px-3 py-2 sm:px-5 sm:py-2.5 shadow-xl flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-4xl w-full">
+            <span class="font-jua text-yellow-300 text-base sm:text-lg hidden md:inline">오늘의 구출 도감:</span>
+            <div id="encyclopedia-list" class="flex items-center justify-center gap-1.5 sm:gap-2.5 flex-wrap">
+                <!-- JS로 랜덤 선발된 5종 생물 슬롯 렌더링 (실루엣/컬러 SVG 배지) -->
+            </div>
+        </div>
+
+        <!-- 나침반 & 탐험 힌트 배너 -->
+        <div id="radar-banner" class="glass-panel rounded-full px-4 py-1.5 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md">
+            <span id="radar-arrow" class="inline-flex items-center justify-center text-yellow-300 transition-transform duration-150">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+                </svg>
+            </span>
+            <span id="radar-text">화살표 방향을 따라 숨어있는 바다 친구를 찾아보세요!</span>
+        </div>
+    </div>
+
+    <!-- 3. 플레이 중 중앙 알림 Toast -->
+    <div id="toast-box" class="ui-layer top-28 sm:top-32 left-1/2 transform -translate-x-1/2 hidden w-11/12 max-w-md text-center">
+        <div id="toast-content" class="bg-amber-400 text-sky-950 font-bold px-5 py-3 rounded-2xl shadow-2xl border-2 border-white text-sm sm:text-base">
+            안내 메시지
+        </div>
+    </div>
+
+    <!-- 4. 플레이 중 하단 환경 보호 도구함 -->
+    <div id="hud-bottom" class="ui-layer bottom-3 left-2 right-2 sm:bottom-5 sm:left-4 sm:right-4 hidden flex flex-col items-center gap-2">
+        <div id="active-tool-desc" class="bg-sky-950/90 text-sky-100 text-xs sm:text-sm px-4 py-1.5 rounded-full border border-sky-400/40 shadow-md text-center">
+            아래에서 알맞은 환경 보호 도구를 선택해 보세요!
+        </div>
+
+        <div id="tool-dock" class="pointer-auto glass-panel rounded-3xl p-2 sm:p-3 shadow-2xl flex items-center justify-center gap-1.5 sm:gap-3 max-w-3xl w-full overflow-x-auto">
+            <!-- JS로 5개 도구 버튼 렌더링 (전용 SVG 아이콘) -->
+        </div>
+    </div>
+
+    <!-- 5. 생물 구출 성공 모달 (이모지 완전 제거 + 실시간 3D 생물 모델 뷰어 탑재) -->
+    <div id="rescue-modal" class="ui-layer inset-0 hidden flex items-center justify-center p-4 bg-sky-950/75 backdrop-blur-sm pointer-auto">
+        <div class="glass-panel max-w-lg w-full rounded-3xl p-5 sm:p-7 text-center text-white shadow-2xl border-4 border-yellow-300">
+            <div class="inline-flex items-center gap-1.5 bg-emerald-500 text-white font-bold px-4 py-1 rounded-full text-xs sm:text-sm mb-3 shadow">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>구출 성공! 위험 요소 해결 완료</span>
+            </div>
+
+            <!-- 실시간 3D 구출 생물 프리뷰 캔버스 영역 -->
+            <div class="relative w-full h-44 sm:h-52 mx-auto mb-3 rounded-2xl overflow-hidden border-2 border-sky-300/60 bg-gradient-to-b from-sky-600/80 to-sky-900/90 shadow-inner">
+                <canvas id="modal-3d-canvas" class="w-full h-full block"></canvas>
+                <div class="absolute bottom-2 right-3 text-[11px] text-sky-200/80 font-medium bg-sky-950/60 px-2.5 py-0.5 rounded-full">
+                    실시간 3D 모습
+                </div>
+            </div>
+
+            <h2 id="rescue-title" class="font-jua text-2xl sm:text-4xl text-yellow-300 mb-2">바다 친구를 구했어요!</h2>
+            <div id="rescue-hazard-badge" class="inline-block bg-sky-900/85 text-sky-200 text-xs sm:text-sm px-3.5 py-1 rounded-lg mb-3 border border-sky-400/30">
+                해결한 위험
+            </div>
+            <div class="bg-white/15 rounded-2xl p-4 text-left mb-5 border border-white/25">
+                <p id="rescue-message" class="text-sm sm:text-base leading-relaxed text-white font-medium">
+                    교육 메시지
+                </p>
+            </div>
+            <button id="continue-btn" class="font-jua text-xl sm:text-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-sky-950 font-bold py-3 px-9 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 border-2 border-white">
+                계속 탐험하기
+            </button>
+        </div>
+    </div>
+
+    <!-- 6. 최종 엔딩 화면 (이모지 완전 제거 + 어린이 바다 지킴이 인증서 + 과몰입 방지 안내) -->
+    <div id="ending-screen" class="ui-layer inset-0 hidden flex items-center justify-center p-4 bg-sky-950/55 backdrop-blur-xs pointer-auto overflow-y-auto">
+        <div class="certificate-card max-w-xl w-full rounded-3xl p-6 sm:p-8 text-center text-amber-950 my-auto">
+            <!-- 상단 황금 트로피 벡터 일러스트 -->
+            <div class="flex justify-center mb-2">
+                <div class="w-16 h-16 rounded-full bg-amber-400/30 border-2 border-amber-500 flex items-center justify-center shadow-inner">
+                    <svg class="w-10 h-10 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="text-amber-700 font-bold tracking-widest text-xs sm:text-sm mb-1">OCEAN GUARDIAN CERTIFICATE</div>
+            <h2 class="font-jua text-3xl sm:text-4xl text-amber-900 mb-4 border-b-2 border-amber-400 pb-3">
+                어린이 바다 지킴이 인증서
+            </h2>
+            <p class="text-base sm:text-lg leading-relaxed text-amber-900 mb-5 font-medium">
+                위 어린이 친구는 <strong>「바닷속 숨바꼭질」</strong> 탐험을 통해<br>
+                바다 쓰레기 수거, 폐그물 회수, 기름띠 제거, 바다숲 가꾸기,<br>
+                외래종 분리 보호 활동을 훌륭하게 완수하여<br>
+                위기에 처한 <strong>5종의 멸종위기 바다 생물</strong>을 모두 구해주었습니다!
+            </p>
+
+            <!-- 오늘 구출한 5종 생물 카드 (이모지 없는 벡터 카드) -->
+            <div id="ending-rescued-list" class="grid grid-cols-5 gap-1.5 sm:gap-2 bg-amber-100/90 p-3 rounded-2xl border border-amber-300 mb-5">
+            </div>
+
+            <p class="font-jua text-lg sm:text-xl text-sky-800 mb-5">
+                “앞으로도 지구를 아끼고 사랑하는 멋진 바다 지킴이가 되어주세요!”
+            </p>
+
+            <!-- 게임 과몰입 방지 안내 배너 (재실행 버튼 없음, 깔끔한 SVG 나뭇잎 아이콘 적용) -->
+            <div class="bg-emerald-600 text-white font-bold py-3.5 px-5 rounded-2xl shadow-md border-2 border-emerald-200 text-sm sm:text-base flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 text-lime-200 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z"/>
+                </svg>
+                <span>게임 과몰입 방지를 위해 하루에 한 번만 체험해주세요</span>
+                <svg class="w-5 h-5 text-lime-200 shrink-0 scale-x-[-1]" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * 1. 5대 환경 보호 도구 정의 (이모지 대신 선명한 전용 SVG 벡터 아이콘 사용)
+         * ============================================================================
+         */
+        const TOOLS_DATA = [
+            {
+                id: 'trash_net',
+                name: '쓰레기 수거망',
+                svg: `<svg class="w-7 h-7 sm:w-8 sm:h-8 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>`,
+                hint: '떠다니는 플라스틱 페트병, 비닐봉지, 캔을 클릭하거나 문질러 쓰레기통에 수거하세요!'
+            },
+            {
+                id: 'safety_scissors',
+                name: '안전 가위·회수망',
+                svg: `<svg class="w-7 h-7 sm:w-8 sm:h-8 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+                      </svg>`,
+                hint: '바다 친구들을 가로막은 엉킨 밧줄 폐그물을 안전 가위로 잘라 회수해 주세요!'
+            },
+            {
+                id: 'oil_pad',
+                name: '기름 흡착포',
+                svg: `<svg class="w-7 h-7 sm:w-8 sm:h-8 text-yellow-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="6" width="18" height="12" rx="3" fill="currentColor" fill-opacity="0.2"></rect>
+                        <circle cx="8" cy="11" r="1" fill="currentColor"></circle>
+                        <circle cx="12" cy="14" r="1" fill="currentColor"></circle>
+                        <circle cx="16" cy="10" r="1" fill="currentColor"></circle>
+                        <circle cx="14" cy="13" r="1" fill="currentColor"></circle>
+                      </svg>`,
+                hint: '무지갯빛 광택이 도는 검은 원유 기름띠 위를 기름 흡착포로 문질러 깨끗이 닦아주세요!'
+            },
+            {
+                id: 'cooling_seed',
+                name: '바다숲 쿨링 씨앗',
+                svg: `<svg class="w-7 h-7 sm:w-8 sm:h-8 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22v-9"></path>
+                        <path d="M12 13C12 8 7 5 3 6c0 4 3 7 9 7z" fill="currentColor" fill-opacity="0.25"></path>
+                        <path d="M12 13c0-5 5-8 9-7 0 4-3 7-9 7z" fill="currentColor" fill-opacity="0.25"></path>
+                      </svg>`,
+                hint: '뜨거워진 바닷물과 백화 산호초 주변에 바다숲 쿨링 씨앗을 심어 수온을 낮춰주세요!'
+            },
+            {
+                id: 'eco_trap',
+                name: '생태계 보호 통발',
+                svg: `<svg class="w-7 h-7 sm:w-8 sm:h-8 text-rose-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="14" rx="4"></rect>
+                        <line x1="8" y1="5" x2="8" y2="19"></line>
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="16" y1="5" x2="16" y2="19"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                      </svg>`,
+                hint: '수온 상승으로 찾아온 가시왕관불가사리 등 외래종을 생태계 보호 통발로 안전하게 분리하세요!'
+            }
+        ];
+
+        /**
+         * ============================================================================
+         * 2. 총 20종 멸종위기·보호 바다생물 데이터베이스 (이모지 완전 제거, 분류 태그 및 SVG 실루엣)
+         * ============================================================================
+         */
+        const ALL_SPECIES_POOL = [
+            // --- [카테고리 1: 플라스틱·비닐 쓰레기 (trash_net)] 4종 ---
+            {
+                id: 'green_turtle',
+                name: '푸른바다거북',
+                categoryTag: '바다거북류',
+                silhouetteType: 'turtle',
+                modelType: 'turtle',
+                primaryColor: 0x22c55e,
+                shellColor: 0x1b5e20,
+                habitatType: 'kelp_forest',
+                hidingPlace: '해초 숲 뒤',
+                hazardType: 'trash',
+                hazardName: '플라스틱·비닐 쓰레기 산더미',
+                toolId: 'trash_net',
+                rescueTitle: '푸른바다거북을 구했어요!',
+                rescueBadge: '해결한 위험: 플라스틱·비닐 쓰레기 수거',
+                rescueMessage: '“고마워! 투명한 비닐봉지를 맛있는 해파리인 줄 알고 삼킬 뻔했어. 일회용 플라스틱을 줄이고 쓰레기를 잘 버려줘서 정말 고마워!”'
+            },
+            {
+                id: 'hawksbill_turtle',
+                name: '매부리바다거북',
+                categoryTag: '바다거북류',
+                silhouetteType: 'turtle',
+                modelType: 'hawksbill',
+                primaryColor: 0xd97706,
+                shellColor: 0x78350f,
+                habitatType: 'coral_reef',
+                hidingPlace: '산호초 바위 틈',
+                hazardType: 'trash',
+                hazardName: '바다에 버려진 페트병과 캔',
+                toolId: 'trash_net',
+                rescueTitle: '매부리바다거북을 구했어요!',
+                rescueBadge: '해결한 위험: 해양 플라스틱·캔 쓰레기 수거',
+                rescueMessage: '“매처럼 뾰족한 부리로 산호 틈의 먹이를 찾다가 페트병에 부리가 낄 뻔했어! 깨끗한 산호초 바다를 지켜주어 고마워!”'
+            },
+            {
+                id: 'manta_ray',
+                name: '쥐가오리',
+                categoryTag: '연골어류',
+                silhouetteType: 'ray',
+                modelType: 'ray',
+                primaryColor: 0x1e293b,
+                bellyColor: 0xf8fafc,
+                habitatType: 'rock_cave',
+                hidingPlace: '넓은 모래 언덕 바위 뒤',
+                hazardType: 'trash',
+                hazardName: '떠다니는 미세 플라스틱과 비닐',
+                toolId: 'trash_net',
+                rescueTitle: '거대한 날개 쥐가오리를 구했어요!',
+                rescueBadge: '해결한 위험: 부유 플라스틱 쓰레기 수거',
+                rescueMessage: '“나는 커다란 입을 벌리고 바닷물을 걸러 작은 플랑크톤을 먹는데, 비닐 쓰레기를 삼킬 뻔했어! 바다를 맑게 치워줘서 고마워!”'
+            },
+            {
+                id: 'whale_shark',
+                name: '고래상어',
+                categoryTag: '대형어류',
+                silhouetteType: 'whale',
+                modelType: 'whale_shark',
+                primaryColor: 0x334155,
+                spotColor: 0xfef08a,
+                habitatType: 'kelp_forest',
+                hidingPlace: '깊은 바닷속 해초 언덕',
+                hazardType: 'trash',
+                hazardName: '해류를 따라 떠밀려온 플라스틱 더미',
+                toolId: 'trash_net',
+                rescueTitle: '온순한 거인 고래상어를 구했어요!',
+                rescueBadge: '해결한 위험: 플라스틱 해양 쓰레기 수거',
+                rescueMessage: '“별빛처럼 반짝이는 점무늬를 가진 나는 세상에서 가장 큰 물고기지만 플라스틱 쓰레기는 소화할 수 없어. 쓰레기를 수거해 줘서 고마워!”'
+            },
+
+            // --- [카테고리 2: 버려진 폐그물 (safety_scissors)] 4종 ---
+            {
+                id: 'finless_porpoise',
+                name: '상괭이',
+                categoryTag: '토종돌고래',
+                silhouetteType: 'dolphin',
+                modelType: 'porpoise',
+                primaryColor: 0x94a3b8,
+                habitatType: 'rock_cave',
+                hidingPlace: '큰 바위 동굴 앞',
+                hazardType: 'net',
+                hazardName: '엉켜있는 거대한 폐그물',
+                toolId: 'safety_scissors',
+                rescueTitle: '웃는 돌고래 상괭이를 구했어요!',
+                rescueBadge: '해결한 위험: 버려진 폐그물 절단 및 회수',
+                rescueMessage: '“휴, 이제 물 위로 올라가 숨을 쉴 수 있어! 버려진 그물에 가슴지느러미가 걸려 꼼짝 못 했는데 안전 가위로 구해주어 고마워!”'
+            },
+            {
+                id: 'loggerhead_turtle',
+                name: '붉은바다거북',
+                categoryTag: '바다거북류',
+                silhouetteType: 'turtle',
+                modelType: 'turtle',
+                primaryColor: 0xea580c,
+                shellColor: 0x9a3412,
+                habitatType: 'rock_cave',
+                hidingPlace: '해저 바위 협곡',
+                hazardType: 'net',
+                hazardName: '바위에 걸린 유령 어업 폐그물',
+                toolId: 'safety_scissors',
+                rescueTitle: '붉은바다거북을 구했어요!',
+                rescueBadge: '해결한 위험: 유령어업 폐그물 제거',
+                rescueMessage: '“주인 없이 바다를 떠도는 폐그물은 바다 생물들에게 무서운 덫이야. 그물을 깨끗하게 회수해 주어서 정말 고마워!”'
+            },
+            {
+                id: 'gray_whale',
+                name: '귀신고래',
+                categoryTag: '수염고래류',
+                silhouetteType: 'whale',
+                modelType: 'gray_whale',
+                primaryColor: 0x475569,
+                habitatType: 'kelp_forest',
+                hidingPlace: '먼바다 해초 숲 길목',
+                hazardType: 'net',
+                hazardName: '꼬리를 휘감은 굵은 밧줄 그물',
+                toolId: 'safety_scissors',
+                rescueTitle: '귀신고래를 구했어요!',
+                rescueBadge: '해결한 위험: 고래를 위협하는 폐그물 절단',
+                rescueMessage: '“먼 여행을 떠나던 길에 버려진 밧줄 그물이 꼬리에 감겨 헤엄칠 수 없었어. 이제 다시 힘차게 헤엄칠 수 있어 고마워!”'
+            },
+            {
+                id: 'spotted_seal',
+                name: '점박이물범',
+                categoryTag: '기각류',
+                silhouetteType: 'seal',
+                modelType: 'spotted_seal',
+                primaryColor: 0xcbd5e1,
+                habitatType: 'rock_cave',
+                hidingPlace: '바위 쉼터 아래',
+                hazardType: 'net',
+                hazardName: '바위 틈에 엉킨 버려진 그물',
+                toolId: 'safety_scissors',
+                rescueTitle: '점박이물범을 구했어요!',
+                rescueBadge: '해결한 위험: 해안 바위 폐그물 회수',
+                rescueMessage: '“우리나라 백령도 바다에도 찾아오는 점박이물범이야! 바위 근처에 버려진 그물을 치워주어서 안전하게 쉴 수 있게 되었어!”'
+            },
+
+            // --- [카테고리 3: 유조선 기름 유출 (oil_pad)] 4종 ---
+            {
+                id: 'sea_otter',
+                name: '해달',
+                categoryTag: '해양포유류',
+                silhouetteType: 'otter',
+                modelType: 'otter',
+                primaryColor: 0x6d4c41,
+                habitatType: 'kelp_forest',
+                hidingPlace: '다시마 숲 사이',
+                hazardType: 'oil',
+                hazardName: '유조선 기름 유출 띠',
+                toolId: 'oil_pad',
+                rescueTitle: '귀여운 해달을 구했어요!',
+                rescueBadge: '해결한 위험: 친환경 흡착포로 기름띠 제거',
+                rescueMessage: '“내 뽀송뽀송한 털에 기름이 묻으면 체온을 지킬 수 없어 추워져. 기름 흡착포로 바다를 깨끗하게 닦아주어 고마워!”'
+            },
+            {
+                id: 'little_penguin',
+                name: '쇠푸른펭귄',
+                categoryTag: '펭귄류',
+                silhouetteType: 'penguin',
+                modelType: 'penguin',
+                primaryColor: 0x1d4ed8,
+                habitatType: 'rock_cave',
+                hidingPlace: '해안가 바위 그늘',
+                hazardType: 'oil',
+                hazardName: '물 위에 퍼진 검은 기름 얼룩',
+                toolId: 'oil_pad',
+                rescueTitle: '작은 쇠푸른펭귄을 구했어요!',
+                rescueBadge: '해결한 위험: 해양 기름 유출 흡착 제거',
+                rescueMessage: '“기름이 깃털에 엉키면 물에 뜰 수도, 물고기를 잡을 수도 없어. 기름 흡착포로 바닷물을 맑게 닦아주어 고마워!”'
+            },
+            {
+                id: 'sea_lion',
+                name: '바다사자',
+                categoryTag: '기각류',
+                silhouetteType: 'seal',
+                modelType: 'sea_lion',
+                primaryColor: 0x92400e,
+                habitatType: 'rock_cave',
+                hidingPlace: '둥근 암초 바위 뒤',
+                hazardType: 'oil',
+                hazardName: '유조선에서 흘러나온 원유 띠',
+                toolId: 'oil_pad',
+                rescueTitle: '바다사자를 구했어요!',
+                rescueBadge: '해결한 위험: 원유 기름띠 방제 작업',
+                rescueMessage: '“독도 바다에서도 살았던 바다사자야! 시커먼 기름 냄새 때문에 숨쉬기 힘들었는데 깨끗한 바다로 되돌려주어 고마워!”'
+            },
+            {
+                id: 'murrelet',
+                name: '바다쇠오리',
+                categoryTag: '바닷새류',
+                silhouetteType: 'bird',
+                modelType: 'murrelet',
+                primaryColor: 0x1e293b,
+                habitatType: 'kelp_forest',
+                hidingPlace: '잔잔한 해초 물결 위',
+                hazardType: 'oil',
+                hazardName: '무지갯빛 기름막 오염',
+                toolId: 'oil_pad',
+                rescueTitle: '바다쇠오리를 구했어요!',
+                rescueBadge: '해결한 위험: 수면 기름막 흡착 제거',
+                rescueMessage: '“물갈퀴 다리로 잠수해 작은 물고기를 잡는 바닷새에게 기름 유출은 가장 무서운 재앙이야. 날개를 펄럭일 수 있게 기름을 닦아주어 고마워!”'
+            },
+
+            // --- [카테고리 4: 수온 상승·백화현상 (cooling_seed)] 4종 ---
+            {
+                id: 'clownfish',
+                name: '흰동가리 & 산호',
+                categoryTag: '산호초어류',
+                silhouetteType: 'fish',
+                modelType: 'clownfish',
+                primaryColor: 0xff6d00,
+                habitatType: 'bleached_coral',
+                hidingPlace: '하얗게 변한 산호초',
+                hazardType: 'heat',
+                hazardName: '수온 상승 (산호 백화현상)',
+                toolId: 'cooling_seed',
+                rescueTitle: '흰동가리와 산호초를 살렸어요!',
+                rescueBadge: '해결한 위험: 바다숲 조성으로 수온 낮추기',
+                rescueMessage: '“바닷물이 시원해져서 하얗게 말랐던 산호가 다시 알록달록 건강해졌어! 지구가 뜨거워지지 않게 전기를 아껴 써줘!”'
+            },
+            {
+                id: 'napoleon_wrasse',
+                name: '나폴레옹피쉬',
+                categoryTag: '산호초어류',
+                silhouetteType: 'fish',
+                modelType: 'wrasse',
+                primaryColor: 0x0d9488,
+                habitatType: 'bleached_coral',
+                hidingPlace: '뜨거워진 산호 언덕',
+                hazardType: 'heat',
+                hazardName: '뜨거운 바닷물 열기 덩어리',
+                toolId: 'cooling_seed',
+                rescueTitle: '멋진 모자 나폴레옹피쉬를 구했어요!',
+                rescueBadge: '해결한 위험: 바다숲 쿨링 씨앗으로 수온 조절',
+                rescueMessage: '“산호초의 왕자 나폴레옹피쉬야! 바닷물이 너무 뜨거워져 집을 잃을 뻔했는데 시원한 바다숲을 가꿔주어 고마워!”'
+            },
+            {
+                id: 'giant_clam',
+                name: '대왕조개',
+                categoryTag: '이매패류',
+                silhouetteType: 'clam',
+                modelType: 'clam',
+                primaryColor: 0x4f46e5,
+                habitatType: 'bleached_coral',
+                hidingPlace: '하얀 산호 모래밭',
+                hazardType: 'heat',
+                hazardName: '고수온으로 인한 산호초 백화',
+                toolId: 'cooling_seed',
+                rescueTitle: '무지갯빛 대왕조개를 구했어요!',
+                rescueBadge: '해결한 위험: 해조류 숲 조성으로 수온 냉각',
+                rescueMessage: '“나는 산호초와 함께 살아가는 거대한 대왕조개야. 바닷물 온도가 낮아져서 내 껍질 속 공생 조류들이 다시 건강해졌어!”'
+            },
+            {
+                id: 'pipefish',
+                name: '해초숲 실고기',
+                categoryTag: '실고기과',
+                silhouetteType: 'seahorse',
+                modelType: 'pipefish',
+                primaryColor: 0x10b981,
+                habitatType: 'bleached_coral',
+                hidingPlace: '시들어가는 해초 산호 틈',
+                hazardType: 'heat',
+                hazardName: '수온 상승 열파 현상',
+                toolId: 'cooling_seed',
+                rescueTitle: '초록빛 실고기를 구했어요!',
+                rescueBadge: '해결한 위험: 잘피·바다숲 씨앗 심기',
+                rescueMessage: '“바닷속 숲인 잘피와 해조류는 탄소를 흡수해 바닷물을 시원하게 만들어줘. 바다숲 씨앗을 심어주어서 정말 고마워!”'
+            },
+
+            // --- [카테고리 5: 수온 상승으로 인한 외래종 유입 (eco_trap)] 4종 ---
+            {
+                id: 'seahorse',
+                name: '해마',
+                categoryTag: '실고기과',
+                silhouetteType: 'seahorse',
+                modelType: 'seahorse',
+                primaryColor: 0xfacc15,
+                habitatType: 'coral_reef',
+                hidingPlace: '분홍 산호 기둥 틈',
+                hazardType: 'invasive',
+                hazardName: '수온 상승 외래종 (가시왕관불가사리)',
+                toolId: 'eco_trap',
+                rescueTitle: '작은 해마 친구를 구했어요!',
+                rescueBadge: '해결한 위험: 외래종 안전 분리 포획',
+                rescueMessage: '“산호를 갉아먹는 무서운 가시왕관불가사리가 사라져서 이제 안심이야! 바닷물 온도가 변해 생태계가 어지러워지지 않게 지켜주자!”'
+            },
+            {
+                id: 'blue_ring_octopus',
+                name: '꼬마 문어 친구',
+                categoryTag: '두족류',
+                silhouetteType: 'octopus',
+                modelType: 'octopus',
+                primaryColor: 0xf59e0b,
+                habitatType: 'rock_cave',
+                hidingPlace: '둥근 항아리 바위 틈',
+                hazardType: 'invasive',
+                hazardName: '외래 포식자 어류 침입',
+                toolId: 'eco_trap',
+                rescueTitle: '바위 틈 꼬마 문어를 구했어요!',
+                rescueBadge: '해결한 위험: 침입 외래종 통발 포획',
+                rescueMessage: '“수온이 오르면서 낯선 외래종 물고기들이 우리 집 앞까지 몰려왔어. 보호 통발로 안전하게 분리해 주어서 고마워!”'
+            },
+            {
+                id: 'native_boxfish',
+                name: '노랑거북복',
+                categoryTag: '거북복과',
+                silhouetteType: 'fish',
+                modelType: 'boxfish',
+                primaryColor: 0xfde047,
+                habitatType: 'coral_reef',
+                hidingPlace: '작은 산호 동굴 속',
+                hazardType: 'invasive',
+                hazardName: '아열대 외래 불가사리 떼',
+                toolId: 'eco_trap',
+                rescueTitle: '귀여운 노랑거북복을 구했어요!',
+                rescueBadge: '해결한 위험: 외래종 생태계 분리 보호',
+                rescueMessage: '“주사위처럼 네모난 몸을 가진 노랑거북복이야! 외래종이 우리 먹이와 집을 빼앗지 못하게 통발로 막아주어 고마워!”'
+            },
+            {
+                id: 'dugong',
+                name: '듀공',
+                categoryTag: '바다소목',
+                silhouetteType: 'whale',
+                modelType: 'dugong',
+                primaryColor: 0x9ca3af,
+                habitatType: 'kelp_forest',
+                hidingPlace: '해초 초원 뒤편',
+                hazardType: 'invasive',
+                hazardName: '해초를 망가뜨리는 외래종 무리',
+                toolId: 'eco_trap',
+                rescueTitle: '바다의 인어 듀공을 구했어요!',
+                rescueBadge: '해결한 위험: 해초밭 침입 외래종 제거',
+                rescueMessage: '“나는 부드러운 해초를 먹고 사는 순한 듀공이야. 해초밭을 망가뜨리던 외래종을 치워주어서 맛있게 밥을 먹을 수 있어 고마워!”'
+            }
+        ];
+
+        /**
+         * 생물 분류별 깔끔한 벡터 실루엣 SVG (이모지 0% - 절대 깨지지 않음)
+         */
+        function getSpeciesVectorBadgeSVG(sp, sizeClass = 'w-5 h-5') {
+            const type = sp.silhouetteType;
+            if (type === 'turtle') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <ellipse cx="16" cy="16" rx="8" ry="10"/>
+                    <circle cx="16" cy="4" r="2.8"/>
+                    <ellipse cx="6" cy="12" rx="4" ry="2" transform="rotate(-25 6 12)"/>
+                    <ellipse cx="26" cy="12" rx="4" ry="2" transform="rotate(25 26 12)"/>
+                    <ellipse cx="8" cy="23" rx="3" ry="1.8" transform="rotate(35 8 23)"/>
+                    <ellipse cx="24" cy="23" rx="3" ry="1.8" transform="rotate(-35 24 23)"/>
+                </svg>`;
+            }
+            if (type === 'dolphin') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <path d="M4 18 C8 10, 20 9, 27 15 C28 16, 27 18, 25 18 C20 18, 15 19, 10 21 L5 25 L7 20 L3 19 Z"/>
+                    <path d="M16 17 L13 23 L18 19 Z"/>
+                </svg>`;
+            }
+            if (type === 'whale') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <path d="M4 17 C4 11, 14 10, 24 13 L29 9 L28 16 L30 21 L24 18 C17 21, 6 21, 4 17 Z"/>
+                    <path d="M13 18 L10 24 L15 20 Z"/>
+                </svg>`;
+            }
+            if (type === 'ray') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <path d="M16 5 L29 16 L17 22 L16 30 L15 22 L3 16 Z"/>
+                </svg>`;
+            }
+            if (type === 'otter' || type === 'seal') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <ellipse cx="16" cy="17" rx="9" ry="5.5"/>
+                    <circle cx="24" cy="13" r="4"/>
+                    <path d="M7 17 L2 15 L3 20 Z"/>
+                    <ellipse cx="19" cy="21" rx="2.5" ry="1.5"/>
+                </svg>`;
+            }
+            if (type === 'bird' || type === 'penguin') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <ellipse cx="15" cy="17" rx="8" ry="5"/>
+                    <circle cx="22" cy="12" r="3.8"/>
+                    <polygon points="25.5,11 30,12.5 25.5,14"/>
+                    <path d="M11 16 L17 12 L19 17 Z" opacity="0.7"/>
+                    <path d="M8 21 L5 25 L10 23 Z"/>
+                </svg>`;
+            }
+            if (type === 'seahorse') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <path d="M18 4 C21 4, 23 7, 22 10 L26 11 L26 13 L21 13 C20 15, 19 17, 20 20 C21 24, 21 28, 16 29 C12 30, 10 27, 12 24 C13 22, 15 23, 15 25 C16 26, 18 25, 17 22 C15 19, 14 15, 16 11 C15 9, 15 5, 18 4 Z"/>
+                </svg>`;
+            }
+            if (type === 'octopus') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <circle cx="16" cy="11" r="6.5"/>
+                    <path d="M10 16 Q7 22 5 26 M13 17 Q12 23 11 27 M16 17 L16 28 M19 17 Q20 23 21 27 M22 16 Q25 22 27 26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                </svg>`;
+            }
+            if (type === 'clam') {
+                return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                    <path d="M4 18 C4 10, 28 10, 28 18 C25 24, 7 24, 4 18 Z"/>
+                </svg>`;
+            }
+            return `<svg viewBox="0 0 32 32" class="${sizeClass}" fill="currentColor">
+                <ellipse cx="14" cy="16" rx="9" ry="6"/>
+                <polygon points="22,16 29,10 29,22"/>
+            </svg>`;
+        }
+
+        let activeSpeciesList = [];
+
+        /**
+         * ============================================================================
+         * 3. Web Audio API 효과음 및 바닷속 잔잔한 앰비언트 사운드
+         * ============================================================================
+         */
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.ambientInterval = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            startAmbient() {
+                this.init();
+                if (this.ambientInterval) return;
+                this.ambientInterval = setInterval(() => {
+                    if (this.muted || !this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const now = this.ctx.currentTime;
+                    const baseFreq = 220 + Math.random() * 180;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.45, now + 0.25);
+                    gain.gain.setValueAtTime(0.03, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.26);
+                }, 2600);
+            }
+            playBubble() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                const now = this.ctx.currentTime;
+                osc.frequency.setValueAtTime(340, now);
+                osc.frequency.exponentialRampToValueAtTime(820, now + 0.14);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+            playClearItem() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                const now = this.ctx.currentTime;
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+            playWrongTool() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                const now = this.ctx.currentTime;
+                osc.frequency.setValueAtTime(280, now);
+                osc.frequency.linearRampToValueAtTime(200, now + 0.2);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            }
+            playRescueFanfare() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    const start = this.ctx.currentTime + idx * 0.11;
+                    osc.frequency.setValueAtTime(freq, start);
+                    gain.gain.setValueAtTime(0.22, start);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + 0.35);
+                });
+            }
+        }
+        const sound = new SoundManager();
+
+        /**
+         * ============================================================================
+         * 4. 절차적 Canvas 텍스처 생성기
+         * ============================================================================
+         */
+        const TextureFactory = {
+            createSandTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#e7cfa9';
+                ctx.fillRect(0, 0, 512, 512);
+                for (let y = 0; y < 512; y += 16) {
+                    ctx.strokeStyle = y % 32 === 0 ? 'rgba(194, 155, 97, 0.35)' : 'rgba(255, 244, 224, 0.45)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    for (let x = 0; x <= 512; x += 16) {
+                        const wave = Math.sin((x / 512) * Math.PI * 4 + y * 0.1) * 4;
+                        if (x === 0) ctx.moveTo(x, y + wave);
+                        else ctx.lineTo(x, y + wave);
+                    }
+                    ctx.stroke();
+                }
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(16, 16);
+                return tex;
+            },
+
+            createTurtleShellTexture(baseHex = 0x1b5e20) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                const hexStr = '#' + baseHex.toString(16).padStart(6, '0');
+                ctx.fillStyle = hexStr;
+                ctx.fillRect(0, 0, 256, 256);
+
+                const r = 34;
+                for (let row = 0; row < 6; row++) {
+                    for (let col = 0; col < 6; col++) {
+                        const cx = col * r * 1.65 + (row % 2) * r * 0.82;
+                        const cy = row * r * 1.45;
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (Math.PI / 3) * i;
+                            const px = cx + r * 0.86 * Math.cos(angle);
+                            const py = cy + r * 0.86 * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = (row + col) % 2 === 0 ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.15)';
+                        ctx.fill();
+                        ctx.lineWidth = 4;
+                        ctx.strokeStyle = '#fde68a';
+                        ctx.stroke();
+                    }
+                }
+                return new THREE.CanvasTexture(canvas);
+            },
+
+            createSpottedTexture(baseHex, spotHex) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#' + baseHex.toString(16).padStart(6, '0');
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.fillStyle = '#' + spotHex.toString(16).padStart(6, '0');
+                for (let i = 0; i < 70; i++) {
+                    ctx.beginPath();
+                    ctx.arc(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                return new THREE.CanvasTexture(canvas);
+            },
+
+            createClownfishTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ff6d00';
+                ctx.fillRect(0, 0, 256, 128);
+
+                const stripes = [52, 128, 200];
+                stripes.forEach((sx, idx) => {
+                    const width = idx === 1 ? 26 : 18;
+                    ctx.fillStyle = '#111827';
+                    ctx.fillRect(sx - width / 2 - 4, 0, width + 8, 128);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(sx - width / 2, 0, width, 128);
+                });
+                return new THREE.CanvasTexture(canvas);
+            },
+
+            createOilSlickTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#090d16';
+                ctx.fillRect(0, 0, 256, 256);
+
+                const grad = ctx.createRadialGradient(128, 128, 15, 128, 128, 120);
+                grad.addColorStop(0, 'rgba(15, 23, 42, 0.95)');
+                grad.addColorStop(0.35, 'rgba(139, 92, 246, 0.45)');
+                grad.addColorStop(0.55, 'rgba(14, 165, 233, 0.4)');
+                grad.addColorStop(0.75, 'rgba(234, 179, 8, 0.35)');
+                grad.addColorStop(1, 'rgba(9, 13, 22, 1)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 256, 256);
+                return new THREE.CanvasTexture(canvas);
+            },
+
+            createOtterFurTexture(baseHex = 0x6d4c41) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#' + baseHex.toString(16).padStart(6, '0');
+                ctx.fillRect(0, 0, 256, 256);
+                for (let i = 0; i < 1600; i++) {
+                    const x = Math.random() * 256;
+                    const y = Math.random() * 256;
+                    ctx.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.18)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + 2, y + 6);
+                    ctx.stroke();
+                }
+                return new THREE.CanvasTexture(canvas);
+            }
+        };
+
+        /**
+         * ============================================================================
+         * 5. 동적 랜덤 스폰 & 20종 중 5종 선발 로직
+         * ============================================================================
+         */
+        function selectRandomFiveSpeciesWithDynamicPositions() {
+            const shuffled = [...ALL_SPECIES_POOL].sort(() => Math.random() - 0.5);
+            const chosen = shuffled.slice(0, 5);
+
+            const placedCoords = [];
+            const minFromPlayer = 18.0;
+            const minBetweenZones = 22.0;
+            const maxRadius = 43.0;
+
+            chosen.forEach((sp, index) => {
+                let validPos = null;
+                let attempts = 0;
+
+                while (!validPos && attempts < 200) {
+                    attempts++;
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = minFromPlayer + Math.random() * (maxRadius - minFromPlayer);
+                    const candX = Math.cos(angle) * radius;
+                    const candZ = Math.sin(angle) * radius;
+
+                    const distPlayer = Math.hypot(candX - 0, candZ - 4);
+                    if (distPlayer < minFromPlayer) continue;
+
+                    const tooClose = placedCoords.some(
+                        (p) => Math.hypot(candX - p.x, candZ - p.z) < minBetweenZones
+                    );
+                    if (!tooClose) {
+                        validPos = { x: Math.round(candX * 10) / 10, z: Math.round(candZ * 10) / 10 };
+                    }
+                }
+
+                if (!validPos) {
+                    const fallbackAngle = (index / 5) * Math.PI * 2 + Math.random() * 0.4;
+                    const fallbackDist = 26 + Math.random() * 14;
+                    validPos = {
+                        x: Math.cos(fallbackAngle) * fallbackDist,
+                        z: Math.sin(fallbackAngle) * fallbackDist
+                    };
+                }
+
+                placedCoords.push(validPos);
+                sp.position = validPos;
+            });
+
+            return chosen;
+        }
+
+        /**
+         * ============================================================================
+         * 6. Three.js 3D 월드 & 구출 알림창 전용 3D 프리뷰 뷰어 초기화
+         * ============================================================================
+         */
+        let scene, camera, renderer;
+        let modalScene, modalCamera, modalRenderer, modalPreviewModel;
+        let endingShowcases = [];
+        let isEndingOpen = false;
+        let playerGroup, playerPropeller;
+        let bubbles = [];
+        let seaweeds = [];
+        let anemoneTentacles = [];
+        let hazardItems = [];
+        let habitatZones = {};
+        let rescuedIds = new Set();
+        let selectedToolId = 'trash_net';
+        let recommendedToolId = null;
+        let isGameActive = false;
+        let isModalOpen = false;
+        let clock = new THREE.Clock();
+
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, w: false, a: false, s: false, d: false };
+        let autoMoveTarget = null;
+        let cameraYaw = 0;
+        let isDraggingCamera = false;
+        let dragStartX = 0;
+        let pointerDownPos = { x: 0, y: 0 };
+        let isRubbingHazard = false;
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let floorPlaneMesh;
+
+        function initThreeJS() {
+            const canvas = document.getElementById('game-canvas');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x054468);
+            scene.fog = new THREE.FogExp2(0x054468, 0.014);
+
+            camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 220);
+            camera.position.set(0, 8, 16);
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            activeSpeciesList = selectRandomFiveSpeciesWithDynamicPositions();
+
+            setupLights();
+            buildOceanEnvironment();
+            createPlayerSubmarine();
+            buildAllHabitatsAndHazards();
+            initModal3DViewer();
+
+            window.addEventListener('resize', onWindowResize);
+            setupInputListeners();
+        }
+
+        /**
+         * 바닷속 3D 조명 및 수면 빛줄기(God Rays) 설정
+         */
+        function setupLights() {
+            const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x082f49, 1.15);
+            hemiLight.position.set(0, 35, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfef9c3, 1.35);
+            dirLight.position.set(22, 42, 18);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 1;
+            dirLight.shadow.camera.far = 120;
+            const d = 55;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            // 수면 위에서 쏟아지는 은은한 바닷속 빛줄기 기둥
+            const rayGeo = new THREE.ConeGeometry(4.5, 36, 16, 1, true);
+            const rayMat = new THREE.MeshBasicMaterial({
+                color: 0xbae6fd,
+                transparent: true,
+                opacity: 0.08,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            for (let i = 0; i < 8; i++) {
+                const ray = new THREE.Mesh(rayGeo, rayMat);
+                const angle = (i / 8) * Math.PI * 2;
+                const dist = 12 + (i % 3) * 12;
+                ray.position.set(Math.cos(angle) * dist, 18, Math.sin(angle) * dist);
+                ray.rotation.z = 0.12;
+                scene.add(ray);
+            }
+        }
+
+        /**
+         * 구출 성공 알림창 상단 전용 3D 생물 프리뷰 렌더러 초기화
+         */
+        function initModal3DViewer() {
+            const mCanvas = document.getElementById('modal-3d-canvas');
+            modalScene = new THREE.Scene();
+
+            modalCamera = new THREE.PerspectiveCamera(42, 420 / 200, 0.1, 50);
+            modalCamera.position.set(0, 1.35, 4.3);
+            modalCamera.lookAt(0, 0.1, 0);
+
+            modalRenderer = new THREE.WebGLRenderer({ canvas: mCanvas, antialias: true, alpha: true });
+            modalRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const hemi = new THREE.HemisphereLight(0xffffff, 0x0c4a6e, 1.45);
+            modalScene.add(hemi);
+
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+            keyLight.position.set(4, 6, 5);
+            modalScene.add(keyLight);
+
+            const rimLight = new THREE.DirectionalLight(0x7dd3fc, 0.9);
+            rimLight.position.set(-4, 3, -4);
+            modalScene.add(rimLight);
+        }
+
+        function showCreatureInModal3D(sp) {
+            if (!modalScene || !modalRenderer) return;
+
+            if (modalPreviewModel) {
+                modalScene.remove(modalPreviewModel);
+            }
+
+            modalPreviewModel = buildDetailedAnimalModel(sp);
+            modalPreviewModel.position.set(0, 0, 0);
+            modalPreviewModel.rotation.y = 0.55;
+            modalScene.add(modalPreviewModel);
+
+            const mCanvas = document.getElementById('modal-3d-canvas');
+            const rect = mCanvas.parentElement.getBoundingClientRect();
+            const w = rect.width || 400;
+            const h = rect.height || 190;
+            modalRenderer.setSize(w, h, false);
+            modalCamera.aspect = w / h;
+            modalCamera.updateProjectionMatrix();
+        }
+
+        /**
+         * 엔딩 인증서 화면 5개 원형 슬롯에 실시간 3D 생물 미니어처 쇼케이스 구축
+         * (단일 modalRenderer를 공유하고 2D 캔버스에 복사하여 WebGL 컨텍스트 제한 오류 방지)
+         */
+        function initEnding3DShowcases() {
+            if (!modalScene || !modalRenderer) return;
+
+            if (modalPreviewModel) {
+                modalScene.remove(modalPreviewModel);
+                modalPreviewModel = null;
+            }
+
+            endingShowcases = [];
+            const endingList = document.getElementById('ending-rescued-list');
+            endingList.innerHTML = '';
+
+            activeSpeciesList.forEach((sp) => {
+                const item = document.createElement('div');
+                item.className = 'bg-white/90 rounded-2xl p-1.5 sm:p-2 border-2 border-amber-300 flex flex-col items-center justify-between shadow-sm';
+
+                const circleWrap = document.createElement('div');
+                circleWrap.className = 'w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-b from-sky-400 to-sky-800 border-2 border-amber-400 shadow-inner mb-1.5 flex items-center justify-center relative';
+
+                const miniCanvas = document.createElement('canvas');
+                miniCanvas.width = 160;
+                miniCanvas.height = 160;
+                miniCanvas.className = 'w-full h-full block';
+                circleWrap.appendChild(miniCanvas);
+
+                const nameLabel = document.createElement('span');
+                nameLabel.className = 'text-[11px] sm:text-xs font-bold text-amber-950 leading-tight break-keep text-center';
+                nameLabel.textContent = sp.name;
+
+                const tagLabel = document.createElement('span');
+                tagLabel.className = 'text-[9px] sm:text-[10px] text-amber-700 font-medium mt-0.5';
+                tagLabel.textContent = sp.categoryTag;
+
+                item.appendChild(circleWrap);
+                item.appendChild(nameLabel);
+                item.appendChild(tagLabel);
+                endingList.appendChild(item);
+
+                const model = buildDetailedAnimalModel(sp);
+                // 긴 체형(고래상어, 실고기, 귀신고래 등)이 원형 프레임 안에 예쁘게 들어오도록 스케일 보정
+                const compactTypes = ['whale_shark', 'gray_whale', 'dugong', 'pipefish', 'ray'];
+                const s = compactTypes.includes(sp.modelType) ? 0.64 : 0.85;
+                model.scale.set(s, s, s);
+                model.visible = false;
+                modalScene.add(model);
+
+                endingShowcases.push({
+                    sp,
+                    model,
+                    ctx2d: miniCanvas.getContext('2d'),
+                    canvas: miniCanvas
+                });
+            });
+
+            modalRenderer.setSize(160, 160, false);
+            modalCamera.aspect = 1;
+            modalCamera.position.set(0, 1.05, 4.1);
+            modalCamera.lookAt(0, 0, 0);
+            modalCamera.updateProjectionMatrix();
+            isEndingOpen = true;
+        }
+
+        function buildOceanEnvironment() {
+            const sandTex = TextureFactory.createSandTexture();
+            const floorGeo = new THREE.CircleGeometry(86, 64);
+            const floorMat = new THREE.MeshStandardMaterial({
+                map: sandTex,
+                roughness: 0.88,
+                metalness: 0.04
+            });
+            floorPlaneMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorPlaneMesh.rotation.x = -Math.PI / 2;
+            floorPlaneMesh.receiveShadow = true;
+            floorPlaneMesh.name = 'ocean_floor';
+            scene.add(floorPlaneMesh);
+
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85 });
+            const coralColors = [0xf43f5e, 0xa855f7, 0x38bdf8, 0xfbbf24, 0x34d399];
+
+            for (let i = 0; i < 42; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 8 + Math.random() * 48;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                const nearHabitat = activeSpeciesList.some(
+                    (sp) => Math.hypot(x - sp.position.x, z - sp.position.z) < 7.5
+                );
+                if (nearHabitat) continue;
+
+                if (i % 3 === 0) {
+                    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 + Math.random() * 1.1, 1), rockMat);
+                    rock.position.set(x, 0.4, z);
+                    rock.rotation.set(Math.random(), Math.random(), Math.random());
+                    scene.add(rock);
+                } else if (i % 3 === 1) {
+                    const cColor = coralColors[i % coralColors.length];
+                    const coralMat = new THREE.MeshStandardMaterial({ color: cColor, roughness: 0.55 });
+                    const coralGroup = new THREE.Group();
+                    for (let b = 0; b < 4; b++) {
+                        const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.24, 1.3 + Math.random() * 0.9, 8), coralMat);
+                        branch.position.set((b - 1.5) * 0.28, 0.65, (Math.random() - 0.5) * 0.3);
+                        branch.rotation.z = (b - 1.5) * 0.28;
+                        coralGroup.add(branch);
+                    }
+                    coralGroup.position.set(x, 0, z);
+                    scene.add(coralGroup);
+                } else {
+                    createSeaweedCluster(x, z, 0x10b981, 2.6);
+                }
+            }
+
+            const bubbleGeo = new THREE.SphereGeometry(0.16, 8, 8);
+            const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.55 });
+            for (let i = 0; i < 100; i++) {
+                const b = new THREE.Mesh(bubbleGeo, bubbleMat);
+                b.position.set((Math.random() - 0.5) * 86, Math.random() * 18, (Math.random() - 0.5) * 86);
+                b.userData.speed = 0.8 + Math.random() * 1.4;
+                b.userData.offset = Math.random() * Math.PI * 2;
+                scene.add(b);
+                bubbles.push(b);
+            }
+        }
+
+        function createSeaweedCluster(x, z, colorHex, heightScale = 3.2) {
+            const group = new THREE.Group();
+            group.position.set(x, 0, z);
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.65 });
+            for (let i = 0; i < 5; i++) {
+                const h = heightScale * (0.8 + Math.random() * 0.55);
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.32, h, 0.08), mat);
+                blade.position.set((Math.random() - 0.5) * 1.2, h / 2, (Math.random() - 0.5) * 1.2);
+                blade.userData.phase = Math.random() * Math.PI * 2;
+                group.add(blade);
+                seaweeds.push(blade);
+            }
+            scene.add(group);
+            return group;
+        }
+
+        function createPlayerSubmarine() {
+            playerGroup = new THREE.Group();
+            playerGroup.position.set(0, 2.2, 4);
+
+            const bodyGeo = new THREE.SphereGeometry(0.95, 24, 18);
+            bodyGeo.scale(1.1, 0.9, 1.48);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.28, metalness: 0.12 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            const windowGeo = new THREE.SphereGeometry(0.58, 18, 18);
+            const windowMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.08, metalness: 0.25 });
+            const glassWindow = new THREE.Mesh(windowGeo, windowMat);
+            glassWindow.position.set(0, 0.1, -0.94);
+            playerGroup.add(glassWindow);
+
+            const tower = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.28, 0.35, 0.55, 14),
+                new THREE.MeshStandardMaterial({ color: 0xf97316 })
+            );
+            tower.position.set(0, 0.85, -0.1);
+            playerGroup.add(tower);
+
+            const headlight = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 12, 12),
+                new THREE.MeshBasicMaterial({ color: 0xfef08a })
+            );
+            headlight.position.set(0, 0.92, -0.35);
+            playerGroup.add(headlight);
+
+            playerPropeller = new THREE.Mesh(
+                new THREE.BoxGeometry(0.95, 0.2, 0.12),
+                new THREE.MeshStandardMaterial({ color: 0xef4444 })
+            );
+            playerPropeller.position.set(0, 0, 1.48);
+            playerGroup.add(playerPropeller);
+
+            const subLight = new THREE.PointLight(0xe0f2fe, 1.3, 20);
+            subLight.position.set(0, 1.6, -2.0);
+            playerGroup.add(subLight);
+
+            scene.add(playerGroup);
+        }
+
+        /**
+         * ============================================================================
+         * 7. 20종 생물 실물 해부학적 특징을 살린 정밀 3D 모델링 빌더
+         *    (상괭이 가슴지느러미·등융기·꼬리지느러미, 바다쇠오리 날개·물갈퀴 다리·부리 등 대폭 정밀화)
+         * ============================================================================
+         */
+        function createEyePair(scale = 1) {
+            const group = new THREE.Group();
+            const whiteGeo = new THREE.SphereGeometry(0.14 * scale, 12, 12);
+            const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const pupilGeo = new THREE.SphereGeometry(0.085 * scale, 10, 10);
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+
+            [-1, 1].forEach((side) => {
+                const eye = new THREE.Mesh(whiteGeo, whiteMat);
+                const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+                pupil.position.z = 0.09 * scale;
+                eye.add(pupil);
+                eye.position.x = side * 0.24 * scale;
+                group.add(eye);
+            });
+            return group;
+        }
+
+        function buildDetailedAnimalModel(sp) {
+            const root = new THREE.Group();
+            root.userData.animParts = {};
+            const type = sp.modelType;
+
+            if (type === 'turtle' || type === 'hawksbill') {
+                // 푸른바다거북 / 붉은바다거북 / 매부리바다거북
+                const shellTex = TextureFactory.createTurtleShellTexture(sp.shellColor || 0x1b5e20);
+                const shellGeo = new THREE.SphereGeometry(1.15, 24, 18);
+                shellGeo.scale(1.05, 0.48, 1.32);
+                const shell = new THREE.Mesh(shellGeo, new THREE.MeshStandardMaterial({ map: shellTex, roughness: 0.45 }));
+                shell.position.y = 0.15;
+                root.add(shell);
+
+                const bellyGeo = new THREE.CylinderGeometry(0.95, 0.9, 0.22, 18);
+                bellyGeo.scale(1.0, 1.0, 1.25);
+                const belly = new THREE.Mesh(bellyGeo, new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.6 }));
+                belly.position.y = -0.05;
+                root.add(belly);
+
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 0.15, 1.48);
+                const head = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.36, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.5 })
+                );
+                head.scale.set(0.9, 0.85, 1.25);
+                headGroup.add(head);
+
+                if (type === 'hawksbill') {
+                    // 매부리바다거북의 뾰족한 매부리형 주둥이
+                    const beak = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.16, 0.36, 10),
+                        new THREE.MeshStandardMaterial({ color: 0x92400e })
+                    );
+                    beak.rotation.x = Math.PI / 1.8;
+                    beak.position.set(0, -0.04, 0.48);
+                    headGroup.add(beak);
+                }
+
+                const eyes = createEyePair(0.85);
+                eyes.position.set(0, 0.1, 0.28);
+                headGroup.add(eyes);
+                root.add(headGroup);
+
+                const flipperMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.5 });
+                const frontFlipperGeo = new THREE.BoxGeometry(1.4, 0.1, 0.46);
+                frontFlipperGeo.translate(0.68, 0, 0);
+
+                const leftFlipper = new THREE.Mesh(frontFlipperGeo, flipperMat);
+                leftFlipper.position.set(0.85, 0.05, 0.65);
+                const rightFlipper = new THREE.Mesh(frontFlipperGeo, flipperMat);
+                rightFlipper.scale.x = -1;
+                rightFlipper.position.set(-0.85, 0.05, 0.65);
+
+                const rearGeo = new THREE.BoxGeometry(0.68, 0.08, 0.34);
+                const rearLeft = new THREE.Mesh(rearGeo, flipperMat);
+                rearLeft.position.set(0.65, 0, -1.15);
+                rearLeft.rotation.y = -0.5;
+                const rearRight = new THREE.Mesh(rearGeo, flipperMat);
+                rearRight.position.set(-0.65, 0, -1.15);
+                rearRight.rotation.y = 0.5;
+
+                root.add(leftFlipper, rightFlipper, rearLeft, rearRight);
+                root.userData.animParts = { leftFlipper, rightFlipper };
+
+            } else if (type === 'ray') {
+                // 쥐가오리: 넓게 펼쳐진 마름모꼴 가슴지느러미 날개 + 머리 지느러미(두엽) + 긴 꼬리
+                const bodyMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.35 });
+                const wingGeo = new THREE.CylinderGeometry(1.75, 1.75, 0.16, 4);
+                wingGeo.scale(1.42, 1.0, 0.85);
+                const wing = new THREE.Mesh(wingGeo, bodyMat);
+                root.add(wing);
+
+                // 앞쪽 두 개의 두엽(머리뿔 지느러미)
+                [-0.36, 0.36].forEach((hx) => {
+                    const horn = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.58), bodyMat);
+                    horn.position.set(hx, 0, 1.35);
+                    horn.rotation.y = hx > 0 ? -0.15 : 0.15;
+                    root.add(horn);
+                });
+
+                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.015, 1.9, 8), bodyMat);
+                tail.rotation.x = Math.PI / 2;
+                tail.position.set(0, 0, -1.65);
+                root.add(tail);
+
+                const eyes = createEyePair(0.85);
+                eyes.position.set(0, 0.12, 0.98);
+                eyes.scale.x = 2.7;
+                root.add(eyes);
+                root.userData.animParts = { wing };
+
+            } else if (type === 'whale_shark' || type === 'gray_whale' || type === 'dugong') {
+                // 고래상어 / 귀신고래 / 듀공
+                const mat = type === 'whale_shark'
+                    ? new THREE.MeshStandardMaterial({ map: TextureFactory.createSpottedTexture(sp.primaryColor, sp.spotColor), roughness: 0.4 })
+                    : new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.42 });
+
+                const body = new THREE.Mesh(new THREE.SphereGeometry(1.05, 22, 18), mat);
+                body.scale.set(0.95, 0.88, 2.25);
+                root.add(body);
+
+                if (type === 'whale_shark') {
+                    // 고래상어 등지느러미
+                    const dorsal = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.95, 0.65), mat);
+                    dorsal.position.set(0, 0.95, -0.15);
+                    dorsal.rotation.x = -0.35;
+                    root.add(dorsal);
+                } else if (type === 'gray_whale') {
+                    // 귀신고래 등쪽 융기 돌기(Knuckles)
+                    for (let k = 0; k < 5; k++) {
+                        const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), mat);
+                        knuckle.position.set(0, 0.72 - k * 0.08, -0.4 - k * 0.35);
+                        root.add(knuckle);
+                    }
+                } else if (type === 'dugong') {
+                    // 듀공의 아래로 향한 넓은 주둥이 원반
+                    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.42, 16), mat);
+                    muzzle.rotation.x = Math.PI / 2.6;
+                    muzzle.position.set(0, -0.22, 2.15);
+                    root.add(muzzle);
+                }
+
+                const eyes = createEyePair(0.9);
+                eyes.position.set(0, 0.12, 1.85);
+                eyes.scale.x = 2.4;
+                root.add(eyes);
+
+                // 양옆 가슴지느러미
+                const finGeo = new THREE.BoxGeometry(1.38, 0.13, 0.58);
+                const lFin = new THREE.Mesh(finGeo, mat);
+                lFin.position.set(1.08, -0.22, 0.65);
+                lFin.rotation.z = -0.28;
+                const rFin = new THREE.Mesh(finGeo, mat);
+                rFin.position.set(-1.08, -0.22, 0.65);
+                rFin.rotation.z = 0.28;
+                root.add(lFin, rFin);
+
+                const tailPivot = new THREE.Group();
+                tailPivot.position.set(0, 0, -2.0);
+                const fluke = new THREE.Mesh(
+                    type === 'whale_shark' ? new THREE.BoxGeometry(0.14, 1.75, 0.68) : new THREE.BoxGeometry(1.85, 0.14, 0.68),
+                    mat
+                );
+                fluke.position.z = -0.48;
+                tailPivot.add(fluke);
+                root.add(tailPivot);
+                root.userData.animParts = { tailPivot, lFin, rFin, isVerticalTail: type === 'whale_shark' };
+
+            } else if (type === 'porpoise') {
+                // [정밀 개선] 상괭이: 가슴지느러미 양옆 추가 + 등지느러미 없는 매끈한 등융기 + 수평 꼬리지느러미 + 웃는 얼굴
+                const bodyMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.28 });
+                const bellyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35 });
+
+                // 유선형 몸통
+                const torso = new THREE.Mesh(new THREE.SphereGeometry(0.94, 24, 20), bodyMat);
+                torso.scale.set(0.88, 0.92, 1.9);
+                root.add(torso);
+
+                // 상괭이 특유의 등융기 (등지느러미 대신 솟은 매끈한 등 능선)
+                const dorsalRidge = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), bodyMat);
+                dorsalRidge.scale.set(0.28, 0.45, 1.85);
+                dorsalRidge.position.set(0, 0.78, -0.25);
+                root.add(dorsalRidge);
+
+                // 둥근 이마(멜론)와 웃는 입매
+                const melonHead = new THREE.Mesh(new THREE.SphereGeometry(0.76, 20, 20), bodyMat);
+                melonHead.position.set(0, 0.06, 1.28);
+                const snout = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 16), bellyMat);
+                snout.scale.set(1.12, 0.65, 1.15);
+                snout.position.set(0, -0.14, 1.65);
+
+                const smile = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.25, 0.035, 8, 16, Math.PI),
+                    new THREE.MeshBasicMaterial({ color: 0x334155 })
+                );
+                smile.rotation.x = Math.PI;
+                smile.position.set(0, -0.08, 2.02);
+
+                const eyes = createEyePair(0.95);
+                eyes.position.set(0, 0.14, 1.68);
+                eyes.scale.x = 2.15;
+                root.add(melonHead, snout, smile, eyes);
+
+                // [핵심 추가] 양옆 큼직한 가슴지느러미 (Pectoral Flippers)
+                const pecGeo = new THREE.BoxGeometry(1.15, 0.11, 0.48);
+                pecGeo.translate(0.55, 0, -0.1);
+                const leftPec = new THREE.Mesh(pecGeo, bodyMat);
+                leftPec.position.set(0.72, -0.22, 0.62);
+                leftPec.rotation.set(0.15, -0.35, -0.45);
+
+                const rightPec = new THREE.Mesh(pecGeo, bodyMat);
+                rightPec.scale.x = -1;
+                rightPec.position.set(-0.72, -0.22, 0.62);
+                rightPec.rotation.set(0.15, 0.35, 0.45);
+                root.add(leftPec, rightPec);
+
+                // 꼬리 자루 + 넓은 수평 꼬리지느러미 (Tail Fluke)
+                const tailPivot = new THREE.Group();
+                tailPivot.position.set(0, 0, -1.55);
+                const tailPeduncle = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.16, 0.9, 14), bodyMat);
+                tailPeduncle.rotation.x = Math.PI / 2;
+                tailPeduncle.position.z = -0.35;
+
+                const fluke = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.12, 0.58), bodyMat);
+                fluke.position.z = -0.82;
+                tailPivot.add(tailPeduncle, fluke);
+                root.add(tailPivot);
+
+                root.userData.animParts = { tailPivot, leftPec, rightPec };
+
+            } else if (type === 'otter' || type === 'spotted_seal' || type === 'sea_lion') {
+                // 해달 / 점박이물범 / 바다사자
+                const furMat = type === 'spotted_seal'
+                    ? new THREE.MeshStandardMaterial({ map: TextureFactory.createSpottedTexture(sp.primaryColor, 0x334155), roughness: 0.55 })
+                    : new THREE.MeshStandardMaterial({ map: TextureFactory.createOtterFurTexture(sp.primaryColor), roughness: 0.78 });
+                const faceMat = new THREE.MeshStandardMaterial({ color: 0xd7ccc8, roughness: 0.7 });
+
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.68, 1.9, 18), furMat);
+                body.rotation.x = Math.PI / 2;
+                root.add(body);
+
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 0.25, 1.15);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.56, 18, 18), type === 'otter' ? faceMat : furMat);
+                const nose = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.14, 12, 12),
+                    new THREE.MeshStandardMaterial({ color: type === 'otter' ? 0xf472b6 : 0x1e293b })
+                );
+                nose.position.set(0, 0.24, 0.45);
+
+                const eyes = createEyePair(0.85);
+                eyes.position.set(0, 0.35, 0.38);
+                headGroup.add(head, nose, eyes);
+
+                if (type === 'sea_lion' || type === 'otter') {
+                    // 작은 귓바퀴 추가
+                    [-0.48, 0.48].forEach((ex) => {
+                        const ear = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), furMat);
+                        ear.position.set(ex, 0.35, 0.05);
+                        headGroup.add(ear);
+                    });
+                }
+                root.add(headGroup);
+
+                // 앞지느러미 / 앞발
+                const flipperGeo = type === 'otter'
+                    ? new THREE.SphereGeometry(0.22, 12, 12)
+                    : new THREE.BoxGeometry(0.95, 0.1, 0.38);
+                const leftPaw = new THREE.Mesh(flipperGeo, furMat);
+                leftPaw.position.set(type === 'otter' ? 0.28 : 0.75, type === 'otter' ? 0.52 : -0.1, 0.45);
+                const rightPaw = new THREE.Mesh(flipperGeo, furMat);
+                rightPaw.position.set(type === 'otter' ? -0.28 : -0.75, type === 'otter' ? 0.52 : -0.1, 0.45);
+                root.add(leftPaw, rightPaw);
+
+                // 뒷지느러미 / 꼬리
+                const rearTail = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.65), furMat);
+                rearTail.position.set(0, -0.05, -1.2);
+                root.add(rearTail);
+
+                root.userData.animParts = { leftPaw, rightPaw, rearTail, isOtter: type === 'otter' };
+
+            } else if (type === 'murrelet') {
+                // [정밀 개선] 바다쇠오리: 펭귄처럼 서 있지 않고 물 위·수중을 수평으로 헤엄치는 바닷새/오리 형태!
+                // 1) 수평 유선형 오리 몸통 (등은 짙은 회흑색, 배는 하얀색)
+                const backMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45 });
+                const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+                const wingMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45 });
+                const footMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 });
+
+                // 몸통 상부(등) & 하부(하얀 배)
+                const bodyTop = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), backMat);
+                bodyTop.scale.set(0.92, 0.72, 1.55);
+                bodyTop.position.set(0, 0.08, 0);
+
+                const bodyBelly = new THREE.Mesh(new THREE.SphereGeometry(0.63, 20, 16), whiteMat);
+                bodyBelly.scale.set(0.9, 0.65, 1.5);
+                bodyBelly.position.set(0, -0.06, 0.02);
+                root.add(bodyTop, bodyBelly);
+
+                // 2) 목과 머리 + 바다쇠오리 특유의 흰 눈썹 줄무늬 + 뾰족한 부리
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 0.52, 0.85);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 18, 18), backMat);
+                const throat = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 16), whiteMat);
+                throat.position.set(0, -0.14, 0.12);
+
+                // 흰 눈썹 무늬 (Ancient Murrelet 특징)
+                [-0.28, 0.28].forEach((sx) => {
+                    const streak = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.42), whiteMat);
+                    streak.position.set(sx, 0.14, -0.06);
+                    streak.rotation.y = sx > 0 ? -0.25 : 0.25;
+                    headGroup.add(streak);
+                });
+
+                // 뾰족한 바닷새 부리
+                const beak = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.11, 0.44, 10),
+                    new THREE.MeshStandardMaterial({ color: 0xfef08a })
+                );
+                beak.rotation.x = Math.PI / 2;
+                beak.position.set(0, -0.02, 0.48);
+
+                const eyes = createEyePair(0.8);
+                eyes.position.set(0, 0.06, 0.3);
+                eyes.scale.x = 1.45;
+                headGroup.add(head, throat, beak, eyes);
+                root.add(headGroup);
+
+                // 3) [핵심 추가] 양옆으로 펄럭이는 오리/바닷새 날개 (Wings)
+                const wingGeo = new THREE.BoxGeometry(0.95, 0.09, 0.52);
+                wingGeo.translate(0.45, 0, -0.1);
+
+                const leftWing = new THREE.Mesh(wingGeo, wingMat);
+                leftWing.position.set(0.52, 0.18, 0.15);
+                leftWing.rotation.set(0.1, -0.25, -0.2);
+
+                const rightWing = new THREE.Mesh(wingGeo, wingMat);
+                rightWing.scale.x = -1;
+                rightWing.position.set(-0.52, 0.18, 0.15);
+                rightWing.rotation.set(0.1, 0.25, 0.2);
+                root.add(leftWing, rightWing);
+
+                // 4) [핵심 추가] 뒤쪽에서 물장구를 치는 물갈퀴 다리 한 쌍 (Webbed Feet)
+                const leftFoot = new THREE.Group();
+                leftFoot.position.set(0.32, -0.35, -0.85);
+                const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 8), footMat);
+                lLeg.rotation.x = Math.PI / 3;
+                const lWeb = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 0.38), footMat);
+                lWeb.position.set(0, -0.1, -0.2);
+                leftFoot.add(lLeg, lWeb);
+
+                const rightFoot = new THREE.Group();
+                rightFoot.position.set(-0.32, -0.35, -0.85);
+                const rLeg = lLeg.clone();
+                const rWeb = lWeb.clone();
+                rightFoot.add(rLeg, rWeb);
+                root.add(leftFoot, rightFoot);
+
+                // 짧은 꽁지깃
+                const tailFeather = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 8), backMat);
+                tailFeather.rotation.x = -Math.PI / 2.2;
+                tailFeather.position.set(0, 0.15, -1.12);
+                root.add(tailFeather);
+
+                root.userData.animParts = { leftWing, rightWing, leftFoot, rightFoot };
+
+            } else if (type === 'penguin') {
+                // 쇠푸른펭귄: 푸른 턱시도 체형 + 지느러미 날개 + 물갈퀴 발
+                const backMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.4 });
+                const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+                const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 18, 18), backMat);
+                body.scale.set(0.85, 1.35, 0.8);
+                const belly = new THREE.Mesh(new THREE.SphereGeometry(0.56, 16, 16), bellyMat);
+                belly.scale.set(0.8, 1.2, 0.6);
+                belly.position.set(0, -0.05, 0.25);
+
+                const beak = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.14, 0.45, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xf97316 })
+                );
+                beak.rotation.x = Math.PI / 2;
+                beak.position.set(0, 0.55, 0.55);
+
+                const eyes = createEyePair(0.75);
+                eyes.position.set(0, 0.65, 0.42);
+                root.add(body, belly, beak, eyes);
+
+                const wingGeo = new THREE.BoxGeometry(0.12, 0.78, 0.28);
+                const leftWing = new THREE.Mesh(wingGeo, backMat);
+                leftWing.position.set(0.62, 0.1, 0);
+                leftWing.rotation.z = -0.35;
+                const rightWing = new THREE.Mesh(wingGeo, backMat);
+                rightWing.position.set(-0.62, 0.1, 0);
+                rightWing.rotation.z = 0.35;
+
+                // 오렌지빛 물갈퀴 발
+                const footMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
+                const lFoot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.42), footMat);
+                lFoot.position.set(0.28, -0.82, 0.2);
+                const rFoot = lFoot.clone();
+                rFoot.position.set(-0.28, -0.82, 0.2);
+
+                root.add(leftWing, rightWing, lFoot, rFoot);
+                root.userData.animParts = { leftWing, rightWing };
+
+            } else if (type === 'clownfish' || type === 'wrasse') {
+                const fishMat = type === 'clownfish'
+                    ? new THREE.MeshStandardMaterial({ map: TextureFactory.createClownfishTexture(), roughness: 0.35 })
+                    : new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.3 });
+
+                const body = new THREE.Mesh(new THREE.SphereGeometry(0.82, 22, 18), fishMat);
+                body.scale.set(0.62, 0.95, 1.48);
+                root.add(body);
+
+                if (type === 'wrasse') {
+                    const hump = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 14), fishMat);
+                    hump.position.set(0, 0.65, 0.58);
+                    root.add(hump);
+                }
+
+                // 등지느러미 & 양옆 가슴지느러미 추가
+                const dorsal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.48, 0.95), fishMat);
+                dorsal.position.set(0, 0.78, -0.1);
+                const pecL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.08), fishMat);
+                pecL.position.set(0.58, -0.1, 0.28);
+                pecL.rotation.y = -0.55;
+                const pecR = pecL.clone();
+                pecR.position.set(-0.58, -0.1, 0.28);
+                pecR.rotation.y = 0.55;
+                root.add(dorsal, pecL, pecR);
+
+                const eyes = createEyePair(0.8);
+                eyes.position.set(0, 0.18, 0.85);
+                eyes.scale.x = 1.45;
+                root.add(eyes);
+
+                const tailPivot = new THREE.Group();
+                tailPivot.position.set(0, 0, -1.05);
+                const tailFin = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.1, 0.88, 0.58),
+                    new THREE.MeshStandardMaterial({ color: sp.primaryColor })
+                );
+                tailFin.position.z = -0.25;
+                tailPivot.add(tailFin);
+                root.add(tailPivot);
+                root.userData.animParts = { tailPivot };
+
+            } else if (type === 'clam') {
+                const shellMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.7 });
+                const mantleMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, emissive: 0x1e1b4b, roughness: 0.3 });
+
+                const bottomShell = new THREE.Mesh(new THREE.SphereGeometry(1.15, 18, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), shellMat);
+                const topShell = new THREE.Mesh(new THREE.SphereGeometry(1.15, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), shellMat);
+                topShell.rotation.x = -0.55;
+                topShell.position.set(0, 0.15, -0.2);
+
+                const mantle = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.85, 0.35, 16), mantleMat);
+                root.add(bottomShell, topShell, mantle);
+                root.userData.animParts = { topShell };
+
+            } else if (type === 'seahorse' || type === 'pipefish') {
+                const bodyMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.4 });
+                const crestMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 });
+
+                if (type === 'pipefish') {
+                    // 해초숲 실고기: 길쭉하고 가느다란 마디 몸통 + 부채꼴 등지느러미
+                    const pipeBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.08, 2.8, 14), bodyMat);
+                    pipeBody.rotation.x = Math.PI / 2;
+                    const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.65, 10), bodyMat);
+                    snout.rotation.x = Math.PI / 2;
+                    snout.position.z = 1.65;
+                    const eyes = createEyePair(0.65);
+                    eyes.position.set(0, 0.08, 1.25);
+                    const backFin = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.05, 0.42, 0.55),
+                        new THREE.MeshStandardMaterial({ color: 0xa7f3d0, transparent: true, opacity: 0.85 })
+                    );
+                    backFin.position.set(0, 0.25, -0.1);
+                    root.add(pipeBody, snout, eyes, backFin);
+                    root.userData.animParts = { backFin };
+                } else {
+                    const spinePoints = [
+                        { y: 1.15, z: 0.25, r: 0.36 },
+                        { y: 0.75, z: 0.05, r: 0.26 },
+                        { y: 0.35, z: -0.15, r: 0.38 },
+                        { y: -0.05, z: -0.12, r: 0.42 },
+                        { y: -0.45, z: 0.08, r: 0.30 },
+                        { y: -0.82, z: 0.24, r: 0.20 },
+                        { y: -1.10, z: 0.36, r: 0.14 },
+                        { y: -1.18, z: 0.16, r: 0.11 }
+                    ];
+                    spinePoints.forEach((pt) => {
+                        const seg = new THREE.Mesh(new THREE.SphereGeometry(pt.r, 16, 14), bodyMat);
+                        seg.scale.set(0.85, 1.1, 1.05);
+                        seg.position.set(0, pt.y, pt.z);
+                        root.add(seg);
+                    });
+
+                    const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.62, 12), bodyMat);
+                    snout.rotation.x = Math.PI / 2.15;
+                    snout.position.set(0, 1.12, 0.72);
+                    root.add(snout);
+
+                    const crown = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.35, 6), crestMat);
+                    crown.position.set(0, 1.54, 0.18);
+                    crown.rotation.x = -0.25;
+                    root.add(crown);
+
+                    const eyes = createEyePair(0.75);
+                    eyes.position.set(0, 1.2, 0.45);
+                    eyes.scale.x = 1.25;
+                    root.add(eyes);
+
+                    const backFin = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.06, 0.68, 0.42),
+                        new THREE.MeshStandardMaterial({ color: 0xfef08a, transparent: true, opacity: 0.85 })
+                    );
+                    backFin.position.set(0, 0.15, -0.52);
+                    root.add(backFin);
+                    root.userData.animParts = { backFin };
+                }
+
+            } else if (type === 'octopus') {
+                const octoMat = new THREE.MeshStandardMaterial({ color: sp.primaryColor, roughness: 0.45 });
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 18, 18), octoMat);
+                head.position.y = 0.55;
+                const eyes = createEyePair(0.95);
+                eyes.position.set(0, 0.35, 0.66);
+                root.add(head, eyes);
+
+                const legs = [];
+                for (let l = 0; l < 8; l++) {
+                    const ang = (l / 8) * Math.PI * 2;
+                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.05, 1.15, 8), octoMat);
+                    leg.position.set(Math.cos(ang) * 0.55, -0.15, Math.sin(ang) * 0.55);
+                    leg.rotation.z = -Math.cos(ang) * 0.55;
+                    leg.rotation.x = Math.sin(ang) * 0.55;
+                    root.add(leg);
+                    legs.push(leg);
+                }
+                root.userData.animParts = { legs };
+
+            } else if (type === 'boxfish') {
+                const boxTex = TextureFactory.createSpottedTexture(sp.primaryColor, 0x2563eb);
+                const boxMat = new THREE.MeshStandardMaterial({ map: boxTex, roughness: 0.35 });
+                const boxBody = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.05, 1.35), boxMat);
+                const lips = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.16, 0.06, 8, 14),
+                    new THREE.MeshStandardMaterial({ color: 0xf43f5e })
+                );
+                lips.position.set(0, -0.05, 0.72);
+                const tailFin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.45), boxMat);
+                tailFin.position.set(0, 0, -0.88);
+                const eyes = createEyePair(0.9);
+                eyes.position.set(0, 0.25, 0.68);
+                eyes.scale.x = 1.6;
+                root.add(boxBody, lips, tailFin, eyes);
+            }
+
+            return root;
+        }
+
+        /**
+         * ============================================================================
+         * 8. 선발된 5종의 은신처 및 장애물 구축
+         * ============================================================================
+         */
+        function buildAllHabitatsAndHazards() {
+            activeSpeciesList.forEach((sp) => {
+                const zoneGroup = new THREE.Group();
+                zoneGroup.position.set(sp.position.x, 0, sp.position.z);
+                scene.add(zoneGroup);
+
+                const landmarkRefs = buildHidingLandmark(sp.habitatType, zoneGroup);
+
+                const animalMesh = buildDetailedAnimalModel(sp);
+                animalMesh.position.set(0, 1.5, -1.3);
+                animalMesh.scale.set(0.76, 0.76, 0.76);
+                zoneGroup.add(animalMesh);
+
+                const murkySphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(5.6, 18, 18),
+                    new THREE.MeshBasicMaterial({
+                        color: sp.hazardType === 'heat' ? 0xef4444 : 0x0f172a,
+                        transparent: true,
+                        opacity: 0.3,
+                        depthWrite: false
+                    })
+                );
+                murkySphere.position.set(0, 2.2, 0);
+                zoneGroup.add(murkySphere);
+
+                const items = buildDetailedHazardMeshes(sp, zoneGroup);
+
+                habitatZones[sp.id] = {
+                    data: sp,
+                    group: zoneGroup,
+                    animalMesh,
+                    murkySphere,
+                    landmarkRefs,
+                    items,
+                    clearedCount: 0,
+                    totalItems: items.length
+                };
+            });
+        }
+
+        function buildHidingLandmark(habitatType, parentGroup) {
+            const refs = [];
+            if (habitatType === 'kelp_forest') {
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI + 0.3;
+                    const c = createSeaweedCluster(
+                        parentGroup.position.x + Math.cos(angle) * 2.4,
+                        parentGroup.position.z - Math.sin(angle) * 2.4,
+                        0x059669,
+                        4.6
+                    );
+                    refs.push(c);
+                }
+            } else if (habitatType === 'rock_cave') {
+                const caveMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 });
+                const leftRock = new THREE.Mesh(new THREE.DodecahedronGeometry(2.4, 1), caveMat);
+                leftRock.position.set(-2.4, 1.5, -1.2);
+                const rightRock = new THREE.Mesh(new THREE.DodecahedronGeometry(2.4, 1), caveMat);
+                rightRock.position.set(2.4, 1.5, -1.2);
+                const topRock = new THREE.Mesh(new THREE.DodecahedronGeometry(2.9, 1), caveMat);
+                topRock.scale.set(1.65, 0.72, 1.25);
+                topRock.position.set(0, 3.7, -1.2);
+                parentGroup.add(leftRock, rightRock, topRock);
+            } else if (habitatType === 'bleached_coral') {
+                const bleachedMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7 });
+                for (let i = 0; i < 5; i++) {
+                    const coral = new THREE.Mesh(new THREE.ConeGeometry(0.85, 2.7, 10), bleachedMat.clone());
+                    coral.position.set((i - 2) * 1.25, 1.35, -1.4 + (i % 2) * 0.5);
+                    parentGroup.add(coral);
+                    refs.push(coral);
+                }
+                const anemoneBase = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1.1, 1.3, 0.55, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.6 })
+                );
+                anemoneBase.position.set(0, 0.28, -0.8);
+                parentGroup.add(anemoneBase);
+
+                const tentacleMat = new THREE.MeshStandardMaterial({ color: 0xf9a8d4, roughness: 0.4 });
+                for (let t = 0; t < 14; t++) {
+                    const ang = (t / 14) * Math.PI * 2;
+                    const r = 0.35 + (t % 3) * 0.25;
+                    const tentacle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.11, 1.3, 8), tentacleMat);
+                    tentacle.position.set(Math.cos(ang) * r, 0.95, -0.8 + Math.sin(ang) * r);
+                    tentacle.userData.phase = t * 0.6;
+                    parentGroup.add(tentacle);
+                    anemoneTentacles.push(tentacle);
+                }
+            } else if (habitatType === 'coral_reef') {
+                const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdb2777, roughness: 0.55 });
+                [-1.6, 1.6].forEach((px) => {
+                    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.88, 4.6, 14), pillarMat);
+                    pillar.position.set(px, 2.3, -1.2);
+                    parentGroup.add(pillar);
+                });
+            }
+            return refs;
+        }
+
+        function buildDetailedHazardMeshes(sp, parentGroup) {
+            const list = [];
+            const offsets = [
+                { x: -1.7, y: 1.65, z: 1.25 },
+                { x: 0.0, y: 2.35, z: 1.75 },
+                { x: 1.7, y: 1.6, z: 1.25 }
+            ];
+
+            offsets.forEach((pos, idx) => {
+                const hazardGroup = new THREE.Group();
+
+                if (sp.hazardType === 'trash') {
+                    if (idx !== 1) {
+                        const bottleBody = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.32, 0.34, 1.15, 14),
+                            new THREE.MeshStandardMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.78, roughness: 0.15 })
+                        );
+                        const neck = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.14, 0.3, 0.28, 12),
+                            new THREE.MeshStandardMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.8 })
+                        );
+                        neck.position.y = 0.68;
+                        const cap = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.15, 0.15, 0.16, 12),
+                            new THREE.MeshStandardMaterial({ color: 0xef4444 })
+                        );
+                        cap.position.y = 0.88;
+                        const label = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.345, 0.345, 0.34, 14),
+                            new THREE.MeshStandardMaterial({ color: 0x0284c7 })
+                        );
+                        hazardGroup.add(bottleBody, neck, cap, label);
+                        hazardGroup.rotation.z = idx === 0 ? 0.65 : -0.75;
+                    } else {
+                        const bagBody = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.68, 14, 12),
+                            new THREE.MeshStandardMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.68, roughness: 0.2 })
+                        );
+                        bagBody.scale.set(1.1, 1.2, 0.55);
+                        const handle1 = new THREE.Mesh(
+                            new THREE.TorusGeometry(0.22, 0.05, 8, 12, Math.PI),
+                            new THREE.MeshStandardMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.75 })
+                        );
+                        handle1.position.set(-0.26, 0.72, 0);
+                        const handle2 = handle1.clone();
+                        handle2.position.set(0.26, 0.72, 0);
+                        hazardGroup.add(bagBody, handle1, handle2);
+                    }
+
+                } else if (sp.hazardType === 'net') {
+                    const ropeMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.85 });
+                    for (let r = -2; r <= 2; r++) {
+                        const hBar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 8), ropeMat);
+                        hBar.rotation.z = Math.PI / 2 + (r * 0.08);
+                        hBar.position.y = r * 0.34;
+                        const vBar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 8), ropeMat);
+                        vBar.rotation.z = r * 0.08;
+                        vBar.position.x = r * 0.34;
+                        hazardGroup.add(hBar, vBar);
+                    }
+                    const buoy = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.26, 12, 12),
+                        new THREE.MeshStandardMaterial({ color: 0xf97316 })
+                    );
+                    buoy.position.set(0.65, 0.75, 0.1);
+                    const hitBox = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.85, 1.85, 0.7),
+                        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+                    );
+                    hazardGroup.add(buoy, hitBox);
+
+                } else if (sp.hazardType === 'oil') {
+                    const oilTex = TextureFactory.createOilSlickTexture();
+                    const oilGeo = new THREE.SphereGeometry(1.05, 18, 14);
+                    oilGeo.scale(1.45, 0.38, 1.35);
+                    const oilMat = new THREE.MeshStandardMaterial({
+                        map: oilTex,
+                        roughness: 0.12,
+                        metalness: 0.65
+                    });
+                    hazardGroup.add(new THREE.Mesh(oilGeo, oilMat));
+
+                } else if (sp.hazardType === 'heat') {
+                    const heatCore = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.65, 16, 16),
+                        new THREE.MeshStandardMaterial({
+                            color: 0xff4500,
+                            emissive: 0xdc2626,
+                            emissiveIntensity: 0.85,
+                            transparent: true,
+                            opacity: 0.88
+                        })
+                    );
+                    const heatRing = new THREE.Mesh(
+                        new THREE.TorusGeometry(0.92, 0.06, 8, 24),
+                        new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+                    );
+                    heatRing.rotation.x = Math.PI / 2;
+                    hazardGroup.add(heatCore, heatRing);
+
+                } else if (sp.hazardType === 'invasive') {
+                    if (idx !== 1) {
+                        const starMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.5 });
+                        const spikeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a });
+                        const centerDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.32, 16), starMat);
+                        centerDisc.rotation.x = Math.PI / 2;
+                        hazardGroup.add(centerDisc);
+
+                        const arms = [];
+                        for (let a = 0; a < 12; a++) {
+                            const ang = (a / 12) * Math.PI * 2;
+                            const armGroup = new THREE.Group();
+                            armGroup.rotation.z = ang;
+                            const arm = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.95, 8), starMat);
+                            arm.position.y = 0.85;
+                            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.28, 6), spikeMat);
+                            spike.position.set(0, 0.75, 0.16);
+                            spike.rotation.x = Math.PI / 2;
+                            armGroup.add(arm, spike);
+                            hazardGroup.add(armGroup);
+                            arms.push(armGroup);
+                        }
+                        hazardGroup.userData.starfishArms = arms;
+                    } else {
+                        const lionBody = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.55, 16, 14),
+                            new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.4 })
+                        );
+                        lionBody.scale.set(0.75, 0.95, 1.45);
+                        hazardGroup.add(lionBody);
+
+                        const spineMat = new THREE.MeshStandardMaterial({ color: 0xfef2f2 });
+                        for (let s = -4; s <= 4; s++) {
+                            const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.05, 1.35, 6), spineMat);
+                            spine.position.set(s * 0.14, 0.55, 0);
+                            spine.rotation.z = -s * 0.22;
+                            hazardGroup.add(spine);
+                        }
+                    }
+                }
+
+                hazardGroup.position.set(pos.x, pos.y, pos.z);
+                hazardGroup.userData.isHazard = true;
+                hazardGroup.userData.speciesId = sp.id;
+                hazardGroup.userData.requiredTool = sp.toolId;
+                hazardGroup.userData.baseY = pos.y;
+                hazardGroup.userData.phase = idx * 1.5;
+
+                parentGroup.add(hazardGroup);
+                list.push(hazardGroup);
+                hazardItems.push(hazardGroup);
+            });
+            return list;
+        }
+
+        /**
+         * ============================================================================
+         * 9. UI 렌더링 및 근접 도구 자동 하이라이트 (이모지 완전 배제)
+         * ============================================================================
+         */
+        function renderUIElements() {
+            const encList = document.getElementById('encyclopedia-list');
+            encList.innerHTML = '';
+            activeSpeciesList.forEach((sp) => {
+                const isRescued = rescuedIds.has(sp.id);
+                const badge = document.createElement('div');
+                badge.id = `enc-badge-${sp.id}`;
+                badge.className = `flex items-center gap-1.5 px-2.5 py-1 rounded-xl border transition-all ${
+                    isRescued
+                        ? 'bg-emerald-500/85 border-yellow-300 text-white shadow-md scale-105'
+                        : 'bg-sky-950/65 border-sky-500/30 text-sky-300/65'
+                }`;
+                badge.innerHTML = `
+                    <span class="flex items-center ${isRescued ? 'text-yellow-200' : 'text-sky-400/50'}">${getSpeciesVectorBadgeSVG(sp, 'w-5 h-5')}</span>
+                    <span class="text-xs sm:text-sm font-bold">${sp.name}</span>
+                    ${isRescued ? '<span class="text-yellow-300 text-xs font-extrabold">완료</span>' : ''}
+                `;
+                encList.appendChild(badge);
+            });
+
+            const toolDock = document.getElementById('tool-dock');
+            toolDock.innerHTML = '';
+            TOOLS_DATA.forEach((tool) => {
+                const btn = document.createElement('button');
+                btn.id = `tool-btn-${tool.id}`;
+                const isActive = selectedToolId === tool.id;
+                const isRec = recommendedToolId === tool.id;
+                btn.className = `tool-btn flex flex-col items-center justify-center px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl border-2 text-white min-w-[76px] sm:min-w-[112px] ${
+                    isActive ? 'active' : 'bg-sky-900/75 border-sky-400/30 hover:bg-sky-800/80'
+                } ${isRec && !isActive ? 'tool-recommended' : ''}`;
+                btn.innerHTML = `
+                    <div class="mb-1 flex items-center justify-center">${tool.svg}</div>
+                    <span class="text-[11px] sm:text-xs font-bold leading-tight text-center">${tool.name}</span>
+                `;
+                btn.addEventListener('click', () => selectTool(tool.id));
+                toolDock.appendChild(btn);
+            });
+            updateActiveToolDescription();
+        }
+
+        function selectTool(toolId) {
+            selectedToolId = toolId;
+            sound.playBubble();
+            renderUIElements();
+        }
+
+        function updateActiveToolDescription() {
+            const tool = TOOLS_DATA.find((item) => item.id === selectedToolId);
+            const descEl = document.getElementById('active-tool-desc');
+            if (tool && descEl) {
+                descEl.innerHTML = `<span class="text-yellow-300 font-bold">[${tool.name}]</span> ${tool.hint}`;
+            }
+        }
+
+        let toastTimeout = null;
+        function showToast(msg, isWarning = false) {
+            const box = document.getElementById('toast-box');
+            const content = document.getElementById('toast-content');
+            content.textContent = msg;
+            content.className = isWarning
+                ? 'bg-amber-400 text-sky-950 font-bold px-5 py-3 rounded-2xl shadow-2xl border-2 border-white text-sm sm:text-base'
+                : 'bg-emerald-400 text-sky-950 font-bold px-5 py-3 rounded-2xl shadow-2xl border-2 border-white text-sm sm:text-base';
+            box.classList.remove('hidden');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                box.classList.add('hidden');
+            }, 2800);
+        }
+
+        /**
+         * ============================================================================
+         * 10. 입력 처리 (클릭, 터치, 문지르기, 키보드 이동, 시점 회전)
+         * ============================================================================
+         */
+        function setupInputListeners() {
+            window.addEventListener('keydown', (e) => {
+                if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            });
+            window.addEventListener('keyup', (e) => {
+                if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+            });
+
+            const canvas = document.getElementById('game-canvas');
+
+            canvas.addEventListener('pointerdown', (e) => {
+                if (!isGameActive || isModalOpen) return;
+                pointerDownPos = { x: e.clientX, y: e.clientY };
+
+                const hitHazard = raycastHazardAt(e.clientX, e.clientY);
+                if (hitHazard && hitHazard.userData.requiredTool === selectedToolId) {
+                    isRubbingHazard = true;
+                    processHazardInteraction(hitHazard);
+                } else {
+                    isDraggingCamera = true;
+                    dragStartX = e.clientX;
+                }
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!isGameActive || isModalOpen) return;
+
+                if (isRubbingHazard) {
+                    const hitHazard = raycastHazardAt(e.clientX, e.clientY);
+                    if (hitHazard) processHazardInteraction(hitHazard);
+                    return;
+                }
+
+                if (isDraggingCamera) {
+                    const deltaX = e.clientX - dragStartX;
+                    cameraYaw -= deltaX * 0.0055;
+                    dragStartX = e.clientX;
+                }
+            });
+
+            canvas.addEventListener('pointerup', (e) => {
+                const wasRubbing = isRubbingHazard;
+                isDraggingCamera = false;
+                isRubbingHazard = false;
+
+                if (!isGameActive || isModalOpen || wasRubbing) return;
+
+                const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+                if (moveDist < 10) {
+                    handleCanvasTap(e.clientX, e.clientY);
+                }
+            });
+        }
+
+        function raycastHazardAt(clientX, clientY) {
+            pointer.x = (clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(pointer, camera);
+
+            const activeHazards = hazardItems.filter((m) => m.visible);
+            const hazardHits = raycaster.intersectObjects(activeHazards, true);
+
+            if (hazardHits.length > 0) {
+                let hitObj = hazardHits[0].object;
+                while (hitObj && !hitObj.userData.isHazard) {
+                    hitObj = hitObj.parent;
+                }
+                return hitObj;
+            }
+            return null;
+        }
+
+        function handleCanvasTap(clientX, clientY) {
+            const hitObj = raycastHazardAt(clientX, clientY);
+            if (hitObj) {
+                processHazardInteraction(hitObj);
+                return;
+            }
+
+            const floorHits = raycaster.intersectObject(floorPlaneMesh);
+            if (floorHits.length > 0) {
+                const pt = floorHits[0].point;
+                const clampedX = Math.max(-46, Math.min(46, pt.x));
+                const clampedZ = Math.max(-46, Math.min(46, pt.z));
+                autoMoveTarget = new THREE.Vector3(clampedX, 2.2, clampedZ);
+                sound.playBubble();
+            }
+        }
+
+        function processHazardInteraction(hazardMesh) {
+            const { speciesId, requiredTool } = hazardMesh.userData;
+            const zone = habitatZones[speciesId];
+            if (!zone || !hazardMesh.visible) return;
+
+            const distToZone = playerGroup.position.distanceTo(zone.group.position);
+            if (distToZone > 14.5) {
+                autoMoveTarget = new THREE.Vector3(
+                    zone.group.position.x,
+                    2.2,
+                    zone.group.position.z + 5.5
+                );
+                showToast(`잠수정이 ${zone.data.hidingPlace} 근처로 헤엄쳐 가고 있어요!`, false);
+                sound.playBubble();
+                return;
+            }
+
+            const reqToolObj = TOOLS_DATA.find((t) => t.id === requiredTool);
+            if (selectedToolId !== requiredTool) {
+                sound.playWrongTool();
+                showToast(
+                    `앗! '${zone.data.hazardName}' 위험을 해결하려면 아래에서 [${reqToolObj.name}] 도구를 선택해 볼까요?`,
+                    true
+                );
+                return;
+            }
+
+            hazardMesh.visible = false;
+            zone.clearedCount += 1;
+            sound.playClearItem();
+
+            if (zone.data.habitatType === 'bleached_coral') {
+                const vibrantColors = [0xf43f5e, 0xfbbf24, 0x38bdf8, 0xa855f7, 0x34d399];
+                zone.landmarkRefs.forEach((coral, i) => {
+                    coral.material.color.setHex(vibrantColors[i % vibrantColors.length]);
+                });
+                createSeaweedCluster(
+                    zone.group.position.x + (zone.clearedCount - 2) * 1.5,
+                    zone.group.position.z + 1.2,
+                    0x10b981,
+                    2.5
+                );
+            }
+
+            const remaining = zone.totalItems - zone.clearedCount;
+            if (remaining > 0) {
+                showToast(`잘했어요! 남은 위험 요소 ${remaining}개도 마저 해결해 주세요!`, false);
+            } else {
+                completeSpeciesRescue(speciesId);
+            }
+        }
+
+        function completeSpeciesRescue(speciesId) {
+            const zone = habitatZones[speciesId];
+            if (!zone || rescuedIds.has(speciesId)) return;
+
+            rescuedIds.add(speciesId);
+            zone.murkySphere.visible = false;
+            recommendedToolId = null;
+
+            zone.animalMesh.position.set(0, 2.3, 0.9);
+            zone.animalMesh.scale.set(1.18, 1.18, 1.18);
+
+            sound.playRescueFanfare();
+            renderUIElements();
+
+            isModalOpen = true;
+            document.getElementById('rescue-title').textContent = zone.data.rescueTitle;
+            document.getElementById('rescue-hazard-badge').textContent = zone.data.rescueBadge;
+            document.getElementById('rescue-message').textContent = zone.data.rescueMessage;
+            document.getElementById('rescue-modal').classList.remove('hidden');
+
+            // 알림창 상단 전용 3D 캔버스에 구출된 실제 3D 생물 모델 띄우기
+            showCreatureInModal3D(zone.data);
+        }
+
+        /**
+         * ============================================================================
+         * 11. 생물별 관절·지느러미·날개·다리 애니메이션 공통 업데이터
+         * ============================================================================
+         */
+        function animateAnimalParts(mesh, modelType, elapsed) {
+            const parts = mesh.userData.animParts || {};
+
+            if ((modelType === 'turtle' || modelType === 'hawksbill') && parts.leftFlipper) {
+                const flap = Math.sin(elapsed * 3.2) * 0.45;
+                parts.leftFlipper.rotation.z = flap;
+                parts.rightFlipper.rotation.z = -flap;
+            } else if (modelType === 'ray' && parts.wing) {
+                parts.wing.rotation.z = Math.sin(elapsed * 3.0) * 0.18;
+            } else if ((modelType === 'whale_shark' || modelType === 'gray_whale' || modelType === 'dugong') && parts.tailPivot) {
+                if (parts.isVerticalTail) parts.tailPivot.rotation.y = Math.sin(elapsed * 4.5) * 0.35;
+                else parts.tailPivot.rotation.x = Math.sin(elapsed * 5.0) * 0.35;
+            } else if (modelType === 'porpoise' && parts.tailPivot) {
+                parts.tailPivot.rotation.x = Math.sin(elapsed * 5.2) * 0.38;
+                if (parts.leftPec) {
+                    parts.leftPec.rotation.z = -0.45 + Math.sin(elapsed * 3.6) * 0.22;
+                    parts.rightPec.rotation.z = 0.45 - Math.sin(elapsed * 3.6) * 0.22;
+                }
+            } else if ((modelType === 'otter' || modelType === 'spotted_seal' || modelType === 'sea_lion') && parts.leftPaw) {
+                mesh.rotation.z = Math.sin(elapsed * 2.2) * 0.12;
+                if (parts.isOtter) {
+                    parts.leftPaw.position.y = 0.52 + Math.sin(elapsed * 4.5) * 0.05;
+                    parts.rightPaw.position.y = 0.52 + Math.cos(elapsed * 4.5) * 0.05;
+                } else {
+                    parts.leftPaw.rotation.z = Math.sin(elapsed * 4.0) * 0.25;
+                    parts.rightPaw.rotation.z = -Math.sin(elapsed * 4.0) * 0.25;
+                }
+            } else if (modelType === 'murrelet' && parts.leftWing) {
+                // 바다쇠오리: 날개 펄럭임 + 뒤쪽 물갈퀴 다리 번갈아 물장구 치기
+                parts.leftWing.rotation.z = -0.2 + Math.sin(elapsed * 7.5) * 0.35;
+                parts.rightWing.rotation.z = 0.2 - Math.sin(elapsed * 7.5) * 0.35;
+                if (parts.leftFoot && parts.rightFoot) {
+                    parts.leftFoot.rotation.x = Math.sin(elapsed * 8.0) * 0.38;
+                    parts.rightFoot.rotation.x = -Math.sin(elapsed * 8.0) * 0.38;
+                }
+            } else if (modelType === 'penguin' && parts.leftWing) {
+                parts.leftWing.rotation.z = -0.35 + Math.sin(elapsed * 6.0) * 0.25;
+                parts.rightWing.rotation.z = 0.35 - Math.sin(elapsed * 6.0) * 0.25;
+            } else if ((modelType === 'clownfish' || modelType === 'wrasse') && parts.tailPivot) {
+                parts.tailPivot.rotation.y = Math.sin(elapsed * 9.0) * 0.45;
+            } else if (modelType === 'clam' && parts.topShell) {
+                parts.topShell.rotation.x = -0.45 + Math.sin(elapsed * 2.0) * 0.18;
+            } else if ((modelType === 'seahorse' || modelType === 'pipefish') && parts.backFin) {
+                parts.backFin.rotation.y = Math.sin(elapsed * 16.0) * 0.45;
+            } else if (modelType === 'octopus' && parts.legs) {
+                parts.legs.forEach((leg, idx) => {
+                    leg.rotation.y = Math.sin(elapsed * 4.0 + idx) * 0.25;
+                });
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 12. 메인 애니메이션 루프
+         * ============================================================================
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.05);
+            const elapsed = clock.getElapsedTime();
+
+            if (isGameActive && !isModalOpen && playerGroup) {
+                updatePlayerMovement(dt);
+                updateRadarAndProximityHighlight();
+            }
+
+            if (playerGroup) {
+                playerGroup.position.y = 2.2 + Math.sin(elapsed * 2.5) * 0.18;
+                if (playerPropeller) playerPropeller.rotation.z += dt * 15;
+
+                const camDist = 11.5;
+                const camHeight = 6.2;
+                const targetCamX = playerGroup.position.x + Math.sin(cameraYaw) * camDist;
+                const targetCamZ = playerGroup.position.z + Math.cos(cameraYaw) * camDist;
+                camera.position.x += (targetCamX - camera.position.x) * 0.08;
+                camera.position.z += (targetCamZ - camera.position.z) * 0.08;
+                camera.position.y += (camHeight - camera.position.y) * 0.08;
+                camera.lookAt(playerGroup.position.x, playerGroup.position.y + 0.5, playerGroup.position.z);
+            }
+
+            bubbles.forEach((b) => {
+                b.position.y += b.userData.speed * dt;
+                b.position.x += Math.sin(elapsed * 2 + b.userData.offset) * 0.015;
+                if (b.position.y > 18) b.position.y = 0.2;
+            });
+
+            seaweeds.forEach((blade) => {
+                blade.rotation.z = Math.sin(elapsed * 1.8 + blade.userData.phase) * 0.15;
+            });
+            anemoneTentacles.forEach((tentacle) => {
+                tentacle.rotation.z = Math.sin(elapsed * 3.0 + tentacle.userData.phase) * 0.28;
+                tentacle.rotation.x = Math.cos(elapsed * 2.4 + tentacle.userData.phase) * 0.22;
+            });
+
+            hazardItems.forEach((item) => {
+                if (!item.visible) return;
+                item.position.y = item.userData.baseY + Math.sin(elapsed * 2.4 + item.userData.phase) * 0.2;
+                if (item.userData.starfishArms) {
+                    item.userData.starfishArms.forEach((arm, idx) => {
+                        arm.rotation.x = Math.sin(elapsed * 4.5 + idx) * 0.28;
+                    });
+                } else {
+                    item.rotation.y += dt * 0.7;
+                }
+            });
+
+            Object.values(habitatZones).forEach((zone) => {
+                const mType = zone.data.modelType;
+                const mesh = zone.animalMesh;
+                const isRescued = rescuedIds.has(zone.data.id);
+
+                animateAnimalParts(mesh, mType, elapsed);
+
+                if (isRescued) {
+                    mesh.position.y = 2.35 + Math.sin(elapsed * 2.8) * 0.35;
+                    mesh.rotation.y = Math.sin(elapsed * 1.4) * 0.65;
+                } else {
+                    mesh.position.x = Math.sin(elapsed * 12) * 0.05;
+                }
+            });
+
+            // 구출 성공 알림창이 열려 있을 때 상단 3D 프리뷰 모델 회전 및 유영 애니메이션 렌더링
+            if (isModalOpen && modalPreviewModel && modalRenderer) {
+                const currentRescuedSp = activeSpeciesList.find((s) => s.id === Array.from(rescuedIds).pop());
+                if (currentRescuedSp) {
+                    animateAnimalParts(modalPreviewModel, currentRescuedSp.modelType, elapsed);
+                }
+                modalPreviewModel.rotation.y = Math.sin(elapsed * 1.2) * 0.75 + 0.45;
+                modalPreviewModel.position.y = Math.sin(elapsed * 2.6) * 0.14;
+                modalRenderer.render(modalScene, modalCamera);
+            }
+
+            // 엔딩 인증서 화면이 열려 있을 때 5개 원형 프레임 안에 실시간 3D 생물 미니어처 5마리 렌더링
+            if (isEndingOpen && endingShowcases.length > 0 && modalRenderer) {
+                endingShowcases.forEach((sc, idx) => {
+                    sc.model.visible = true;
+                    animateAnimalParts(sc.model, sc.sp.modelType, elapsed + idx * 0.7);
+                    sc.model.rotation.y = elapsed * 1.15 + idx * 1.1;
+                    sc.model.position.y = Math.sin(elapsed * 2.5 + idx) * 0.12;
+
+                    modalRenderer.render(modalScene, modalCamera);
+                    sc.ctx2d.clearRect(0, 0, sc.canvas.width, sc.canvas.height);
+                    sc.ctx2d.drawImage(modalRenderer.domElement, 0, 0, sc.canvas.width, sc.canvas.height);
+                    sc.model.visible = false;
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function updatePlayerMovement(dt) {
+            const speed = 12.2;
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keys.ArrowUp || keys.w) moveZ -= 1;
+            if (keys.ArrowDown || keys.s) moveZ += 1;
+            if (keys.ArrowLeft || keys.a) moveX -= 1;
+            if (keys.ArrowRight || keys.d) moveX += 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                autoMoveTarget = null;
+                const inputAngle = Math.atan2(moveX, moveZ) + cameraYaw;
+                playerGroup.position.x += Math.sin(inputAngle) * speed * dt;
+                playerGroup.position.z += Math.cos(inputAngle) * speed * dt;
+                playerGroup.rotation.y = inputAngle + Math.PI;
+            } else if (autoMoveTarget) {
+                const dx = autoMoveTarget.x - playerGroup.position.x;
+                const dz = autoMoveTarget.z - playerGroup.position.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist > 0.4) {
+                    const angle = Math.atan2(dx, dz);
+                    playerGroup.position.x += Math.sin(angle) * speed * dt;
+                    playerGroup.position.z += Math.cos(angle) * speed * dt;
+                    playerGroup.rotation.y = angle + Math.PI;
+                } else {
+                    autoMoveTarget = null;
+                }
+            }
+
+            playerGroup.position.x = Math.max(-48, Math.min(48, playerGroup.position.x));
+            playerGroup.position.z = Math.max(-48, Math.min(48, playerGroup.position.z));
+        }
+
+        function updateRadarAndProximityHighlight() {
+            let nearest = null;
+            let minDist = Infinity;
+
+            activeSpeciesList.forEach((sp) => {
+                if (rescuedIds.has(sp.id)) return;
+                const d = Math.hypot(sp.position.x - playerGroup.position.x, sp.position.z - playerGroup.position.z);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = sp;
+                }
+            });
+
+            const radarArrow = document.getElementById('radar-arrow');
+            const radarText = document.getElementById('radar-text');
+
+            if (!nearest) {
+                radarText.textContent = '모든 바다 친구들을 구출했어요!';
+                return;
+            }
+
+            const worldAngle = Math.atan2(
+                nearest.position.x - playerGroup.position.x,
+                nearest.position.z - playerGroup.position.z
+            );
+            const relAngleDeg = ((worldAngle - cameraYaw + Math.PI) * 180) / Math.PI;
+            radarArrow.style.transform = `rotate(${-relAngleDeg}deg)`;
+
+            if (minDist < 14.0) {
+                radarText.innerHTML = `<span class="text-yellow-300">[${nearest.hidingPlace}]</span> 도착! <strong>'${nearest.hazardName}'</strong> 위험을 해결해 주세요!`;
+                if (recommendedToolId !== nearest.toolId) {
+                    recommendedToolId = nearest.toolId;
+                    renderUIElements();
+                }
+            } else {
+                radarText.innerHTML = `화살표 방향 <span class="text-yellow-300">[${nearest.hidingPlace}]</span> 쪽에서 도움이 필요해요! (${Math.round(minDist)}m)`;
+                if (recommendedToolId !== null) {
+                    recommendedToolId = null;
+                    renderUIElements();
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /**
+         * ============================================================================
+         * 13. 게임 시작 / 계속 / 엔딩(과몰입 방지 안내) 제어
+         * ============================================================================
+         */
+        window.onload = function () {
+            initThreeJS();
+            renderUIElements();
+            animate();
+
+            document.getElementById('start-btn').addEventListener('click', () => {
+                sound.init();
+                sound.startAmbient();
+                sound.playRescueFanfare();
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('hud-top').classList.remove('hidden');
+                document.getElementById('hud-bottom').classList.remove('hidden');
+                isGameActive = true;
+                showToast('상단 화살표를 따라 숨어있는 5마리의 바다 친구들을 찾아보세요!', false);
+            });
+
+            document.getElementById('continue-btn').addEventListener('click', () => {
+                sound.playBubble();
+                document.getElementById('rescue-modal').classList.add('hidden');
+                isModalOpen = false;
+
+                if (rescuedIds.size === activeSpeciesList.length) {
+                    scene.background = new THREE.Color(0x0284c7);
+                    scene.fog = new THREE.FogExp2(0x0284c7, 0.007);
+                    sound.playRescueFanfare();
+
+                    document.getElementById('hud-top').classList.add('hidden');
+                    document.getElementById('hud-bottom').classList.add('hidden');
+                    document.getElementById('ending-screen').classList.remove('hidden');
+                    isGameActive = false;
+
+                    // 엔딩 인증서 5개 원형 슬롯에 실시간 3D 바다생물 미니어처 쇼케이스 활성화
+                    initEnding3DShowcases();
+                }
+            });
+
+            document.getElementById('sound-toggle-btn').addEventListener('click', () => {
+                sound.muted = !sound.muted;
+                document.getElementById('sound-svg-on').classList.toggle('hidden', sound.muted);
+                document.getElementById('sound-svg-off').classList.toggle('hidden', !sound.muted);
+            });
+        };
+    </script>
+</body>
+</html>
